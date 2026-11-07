@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=OmaMastery
+Comment=Mastery gradebook and planning hub, shaped with your AI agent
+Exec=omamastery open %U
+Icon=omamastery
+Terminal=false
+Categories=Education;Office;
+Keywords=gradebook;mastery;teacher;class;planning;
+StartupWMClass=omamastery

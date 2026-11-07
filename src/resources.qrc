@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="Main.qml">Main.qml</file>
+        <file alias="ClassRail.qml">ClassRail.qml</file>
+        <file alias="TodayView.qml">TodayView.qml</file>
+        <file alias="MasteryView.qml">MasteryView.qml</file>
+        <file alias="PlanView.qml">PlanView.qml</file>
+        <file alias="i18n/en.json">i18n/en.json</file>
+    </qresource>
+</RCC>

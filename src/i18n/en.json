@@ -1,0 +1,8 @@
+{
+  "%n students": { "one": "%n student", "other": "%n students" },
+  "%n not checked yet": { "one": "%n not checked yet", "other": "%n not checked yet" },
+  "%n objectives, from the long-range plan in this class's folder.": {
+    "one": "%n objective, from the long-range plan in this class's folder.",
+    "other": "%n objectives, from the long-range plan in this class's folder."
+  }
+}
