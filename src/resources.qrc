@@ -5,6 +5,7 @@
         <file alias="TodayView.qml">TodayView.qml</file>
         <file alias="MasteryView.qml">MasteryView.qml</file>
         <file alias="PlanView.qml">PlanView.qml</file>
+        <file alias="SetupView.qml">SetupView.qml</file>
         <file alias="i18n/en.json">i18n/en.json</file>
     </qresource>
 </RCC>

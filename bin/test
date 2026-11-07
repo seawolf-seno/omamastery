@@ -8,3 +8,8 @@ cd "$ROOT/build/tests"
 qmake6 "$ROOT/tests/omamastery_tests.pro"
 make -j"$(nproc)"
 QT_QPA_PLATFORM=offscreen ./omamastery_tests
+
+# The one-time setup, end to end against a fake school (made-up data).
+if [ -x "$ROOT/build/omamastery" ]; then
+  "$ROOT/tests/setup_e2e.sh"
+fi

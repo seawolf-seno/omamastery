@@ -79,7 +79,7 @@ Rectangle {
                     }
                     Label {
                         textFormat: Text.PlainText
-                        text: qsTr("%1 day · Block %2").arg(row.modelData.day).arg(row.modelData.block)
+                        text: win.whenText(row.modelData)
                               + (row.modelData.sample ? qsTr(" · sample") : "")
                         color: win.dim
                         font.pixelSize: 12
@@ -115,6 +115,16 @@ Rectangle {
             visible: backend.nowIndex >= 0 && backend.nowIndex !== backend.currentIndex
             text: qsTr("Go to the class now")
             onClicked: backend.goToNow()
+        }
+
+        Button {
+            Layout.fillWidth: true
+            flat: true
+            text: qsTr("Update from Canvas")
+            font.pixelSize: 12
+            onClicked: win.openSetup()
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("New term or new students: refresh rosters, or add classes")
         }
     }
 }

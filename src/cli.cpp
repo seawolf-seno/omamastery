@@ -9,6 +9,7 @@
 #include "classbook.h"
 #include "samples.h"
 #include "school.h"
+#include "setupcli.h"
 
 namespace {
 
@@ -36,7 +37,8 @@ QJsonObject classJson(const ClassInfo &info, const NowInfo &now, int index) {
 }
 
 int usage() {
-    err() << "Usage: omamastery [open [CLASS] | classes [--json] | now [--json] | init [--sample]]\n";
+    err() << "Usage: omamastery [open [CLASS] | classes [--json] | now [--json] | init [--sample]\n"
+             "                   | setup [--canvas URL] [--blackbaud] [--yes] [--dry-run] [--forget] | draft]\n";
     return 1;
 }
 
@@ -45,7 +47,7 @@ int usage() {
 bool Cli::handles(const QStringList &arguments) {
     if (arguments.size() < 2)
         return false;
-    static const QStringList commands{"classes", "now", "init", "help", "--help", "-h"};
+    static const QStringList commands{"classes", "now", "init", "setup", "draft", "help", "--help", "-h"};
     return commands.contains(arguments[1]);
 }
 
@@ -54,6 +56,10 @@ int Cli::run(const QStringList &arguments) {
     const bool json = arguments.contains("--json");
     Classbook book(qEnvironmentVariable("OMAMASTERY_HOME"));
 
+    if (command == "setup")
+        return SetupCli::run(arguments);
+    if (command == "draft")
+        return SetupCli::draft();
     if (command == "init") {
         QString report;
         QString error;

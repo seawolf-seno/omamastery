@@ -6,6 +6,8 @@
 
 #include "backend.h"
 #include "classbook.h"
+#include "connect/connect.h"
+#include "connect/importer.h"
 #include "samples.h"
 #include "school.h"
 #include "theme.h"
@@ -155,6 +157,90 @@ private slots:
             QVERIFY(prompt.contains("AGENTS.md"));
             QVERIFY(prompt.contains("AP CSP"));
         }
+        // A real class: every prompt fences off the student files and none asks for them.
+        info.sample = false;
+        for (const char *kind : {"next", "space", "objectives"}) {
+            const QString prompt = Backend::agentPrompt(kind, info);
+            QVERIFY(prompt.contains("never open roster.toml, mastery.csv or notes.md"));
+            QCOMPARE(prompt.count("mastery.csv"), 1);
+            QCOMPARE(prompt.count("notes.md"), 1);
+        }
+        QVERIFY(Connect::draftPrompt({"robotics"}).contains("Never open roster.toml or mastery.csv"));
+    }
+
+    void setupReadsDayAndBlockFromNames() {
+        struct Case { const char *text; const char *day; int block; };
+        const Case cases[] = {{"AP CSP - Block 3A", "A", 3}, {"Physics 2B", "B", 2}, {"Robotics A-4", "A", 4},
+                              {"Period 1", "", 1}, {"Chemistry (B)", "B", 0}, {"Advisory", "", 0},
+                              {"Algebra 2", "", 0}};
+        for (const auto &c : cases) {
+            QString day;
+            int block = 0;
+            Importer::guessDayBlock(c.text, &day, &block);
+            QCOMPARE(day, QString(c.day));
+            QCOMPARE(block, c.block);
+        }
+    }
+
+    void setupReadsBlackbaudClockTimes() {
+        QCOMPARE(Importer::clockTime("1900-01-01T08:05:00-05:00"), QTime(8, 5));
+        QCOMPARE(Importer::clockTime("13:15"), QTime(13, 15));
+        QCOMPARE(Importer::clockTime("1:15 PM"), QTime(13, 15));
+        QCOMPARE(Importer::clockTime("12:10 AM"), QTime(0, 10));
+        QVERIFY(!Importer::clockTime("soon").isValid());
+    }
+
+    void setupNormalizesCanvasAddresses() {
+        using S = Connect::Settings;
+        QCOMPARE(S::normalizeCanvasUrl("pacificachristian"), QString("https://pacificachristian.instructure.com"));
+        QCOMPARE(S::normalizeCanvasUrl("school.instructure.com/courses/12/"), QString("https://school.instructure.com"));
+        QCOMPARE(S::normalizeCanvasUrl("http://canvas.school.org"), QString("https://canvas.school.org"));
+        QCOMPARE(S::normalizeCanvasUrl("http://127.0.0.1:8080"), QString("http://127.0.0.1:8080"));
+        QCOMPARE(S::normalizeCanvasUrl("  "), QString());
+    }
+
+    void setupTellsStudentsWithOneNameApart() {
+        const QJsonArray users = QJsonDocument::fromJson(R"([
+            {"id": 1, "short_name": "Sam", "sortable_name": "Arden, Sam"},
+            {"id": 2, "short_name": "Sam", "sortable_name": "Berry, Sam"},
+            {"id": 3, "short_name": "Lio", "sortable_name": "Park, Lio"},
+            {"id": 3, "short_name": "Lio", "sortable_name": "Park, Lio"},
+            {"id": 4, "short_name": "Ana", "sortable_name": "Cole, Ana"},
+            {"id": 5, "short_name": "Ana", "sortable_name": "Cruz, Ana"}])").array();
+        QStringList names;
+        for (const auto &s : Importer::studentsFromCanvas(users))
+            names << s.name;
+        QCOMPARE(names, QStringList({"Sam A.", "Sam B.", "Lio", "Ana Cole", "Ana Cruz"}));
+    }
+
+    void setupMakesShortFolderNames() {
+        QCOMPARE(Importer::slug("AP Computer Science Principles - Block 1A"), QString("ap-computer-science-principles-block-1a"));
+        QCOMPARE(Importer::slug("  Español: Nivel II! "), QString("espa-ol-nivel-ii"));
+        QVERIFY(Importer::slug("A very long course name that keeps going and going forever").size() <= 40);
+    }
+
+    void classbookReadsTheRoster() {
+        QTemporaryDir dir;
+        QDir().mkpath(dir.filePath("c"));
+        write(dir.filePath("c/class.toml"), "name = \"Real\"\nsample = false\n");
+        write(dir.filePath("c/roster.toml"), "[[student]]\nname = \"Mara\"\ncanvas_id = \"1\"\n\n[[student]]\nname = \"Teo\"\n");
+        const ClassInfo info = Classbook::loadClass(dir.filePath("c"));
+        QCOMPARE(info.students, QStringList({"Mara", "Teo"}));
+        QVERIFY(!info.sample);
+    }
+
+    void agentGuideFencesOffRealStudents() {
+        QVERIFY(Samples::agentsGuide().contains("Never open `roster.toml`, `mastery.csv` or `notes.md`"));
+        QTemporaryDir dir;
+        const QString path = dir.filePath("AGENTS.md");
+        write(path, "# My own guide\n");
+        Samples::addRealClassRules(path);
+        Samples::addRealClassRules(path);
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(file.readAll());
+        QVERIFY(text.startsWith("# My own guide"));
+        QCOMPARE(text.count("## Real classes"), 1);
     }
 
     void themeFallsBack() {

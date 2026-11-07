@@ -2,3 +2,11 @@
 /pkgbuild/pkg/
 /pkgbuild/src/
 *.pkg.tar.*
+
+# Real class data never belongs in this repo (FERPA). Setup refuses to write
+# inside a git repo, and these catch a copy made by hand.
+roster.toml
+mastery.csv
+Classes/
+connect.toml
+secrets

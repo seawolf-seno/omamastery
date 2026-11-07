@@ -93,6 +93,24 @@ ClassInfo Classbook::loadClass(const QString &dir) {
         info.error = error;
     }
 
+    // A real class keeps its students in roster.toml, apart from the files an
+    // agent may read.
+    toml::table roster;
+    if (parseToml(dir + "/roster.toml", &roster, &error)) {
+        if (const auto *students = roster["student"].as_array()) {
+            for (const auto &item : *students) {
+                const auto *entry = item.as_table();
+                if (!entry)
+                    continue;
+                const QString name = str((*entry)["name"]).trimmed();
+                if (!name.isEmpty() && !info.students.contains(name))
+                    info.students.append(name);
+            }
+        }
+    } else if (!error.isEmpty() && info.error.isEmpty()) {
+        info.error = error;
+    }
+
     toml::table plan;
     if (parseToml(dir + "/plan.toml", &plan, &error)) {
         if (const auto *objectives = plan["objective"].as_array()) {

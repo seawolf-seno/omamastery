@@ -1,4 +1,4 @@
-QT += core gui qml quick quickcontrols2
+QT += core gui qml quick quickcontrols2 network
 
 CONFIG += c++17 release
 TARGET = omamastery
@@ -8,6 +8,11 @@ HEADERS += \
     src/backend.h \
     src/classbook.h \
     src/cli.h \
+    src/connect/connect.h \
+    src/connect/http.h \
+    src/connect/importer.h \
+    src/setupcli.h \
+    src/setupflow.h \
     src/samples.h \
     src/school.h \
     src/theme.h \
@@ -18,6 +23,11 @@ SOURCES += \
     src/backend.cpp \
     src/classbook.cpp \
     src/cli.cpp \
+    src/connect/connect.cpp \
+    src/connect/http.cpp \
+    src/connect/importer.cpp \
+    src/setupcli.cpp \
+    src/setupflow.cpp \
     src/samples.cpp \
     src/school.cpp \
     src/theme.cpp \

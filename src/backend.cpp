@@ -226,6 +226,29 @@ QString Backend::agentPrompt(const QString &kind, const ClassInfo &info) {
     const QString intro = QStringLiteral(
         "I'm a teacher. You're in the folder for my class \"%1\" inside ~/Classes. "
         "Read ../AGENTS.md first and follow its rules. ").arg(info.name);
+    // A real class: the agent works from the course plan only, never from
+    // the roster, the mastery log or the teacher's notes about students.
+    const QString plans = QStringLiteral("the long-range plan (long-range-plan.*), syllabus.md and canvas-plan.md if they're here");
+    if (!info.sample) {
+        const QString fence = QStringLiteral("This is a real class: never open roster.toml, mastery.csv or notes.md. ");
+        if (kind == "space")
+            return intro + fence + QStringLiteral(
+                "Read %1, ideas.toml, plan.toml and ../schedule.toml. Space the learning objectives across the semester "
+                "in plan.toml: one week per objective unless a topic needs more, skip days off, leave the week before "
+                "finals for review, and tie every objective to a core idea. Show me the proposed schedule as a short "
+                "list before you save it.").arg(plans);
+        if (kind == "objectives")
+            return intro + fence + QStringLiteral(
+                "Read %1, ideas.toml and plan.toml. If ideas.toml is empty, draft the course's core ideas first. Then "
+                "draft clear learning objectives for the units plan.toml doesn't cover yet (or turn its draft rows from "
+                "Canvas modules into objectives), each one a thing a student can do, tied to a core idea. Keep existing "
+                "ids. Show them to me before saving.").arg(plans);
+        return intro + fence + QStringLiteral(
+            "Read plan.toml and ideas.toml. Look at this week's and last week's objectives. Suggest two or three "
+            "small, concrete next steps for this week: what to reteach, what practice or extension to give, and "
+            "connections to other subjects through the core ideas' joints. Tell me them in a few lines; I'll decide "
+            "which students they're for.");
+    }
     if (kind == "space")
         return intro + QStringLiteral(
             "Then read the long-range plan in this folder (long-range-plan.*), ideas.toml, plan.toml and "

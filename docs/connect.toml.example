@@ -1,0 +1,14 @@
+# OmaMastery's connection to the school, for every teacher on a machine.
+# Install as /etc/omamastery/connect.toml (PacOS can ship it). A teacher's own
+# ~/.config/omamastery/connect.toml overrides any line. No secrets here:
+# each teacher's Canvas token and Blackbaud sign-in live in their keyring.
+
+canvas_url = "https://pacificachristian.instructure.com"
+
+# Optional: Blackbaud (SKY API) for A/B day, block, room and bell times.
+# Needs a SKY application with http://localhost:8765/callback as a redirect
+# URI, connected to the school's environment by a Blackbaud admin. Teachers
+# sign in once with their own Blackbaud account (the Teacher role is enough).
+# blackbaud_subscription_key = ""
+# blackbaud_client_id = ""
+# blackbaud_port = 8765

@@ -18,6 +18,12 @@ ApplicationWindow {
     Material.roundedScale: theme.radius
 
     property bool helpVisible: false
+    property bool setupVisible: startInSetup
+    function openSetup() { setup.start(""); win.setupVisible = true }
+    function whenText(c) {
+        if (!c.day && !c.block) return qsTr("Day and block not set")
+        return qsTr("%1 day · Block %2").arg(c.day || "?").arg(c.block || "?")
+    }
     property int tab: 0
     readonly property color ink: "#e8e8ea"
     readonly property color dim: "#9a9aa2"
@@ -39,17 +45,17 @@ ApplicationWindow {
         return backend.levels[student + "|" + objective] || ""
     }
 
-    Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; onActivated: win.helpVisible = !win.helpVisible }
+    Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: win.helpVisible = !win.helpVisible }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; enabled: win.helpVisible; onActivated: win.helpVisible = false }
-    Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
-    Shortcut { sequence: "1"; context: Qt.ApplicationShortcut; onActivated: win.tab = 0 }
-    Shortcut { sequence: "2"; context: Qt.ApplicationShortcut; onActivated: win.tab = 1 }
-    Shortcut { sequence: "3"; context: Qt.ApplicationShortcut; onActivated: win.tab = 2 }
-    Shortcut { sequences: ["J", "Down"]; context: Qt.ApplicationShortcut; onActivated: backend.selectClass(backend.currentIndex + 1) }
-    Shortcut { sequences: ["K", "Up"]; context: Qt.ApplicationShortcut; onActivated: backend.selectClass(backend.currentIndex - 1) }
-    Shortcut { sequence: "N"; context: Qt.ApplicationShortcut; onActivated: backend.goToNow() }
-    Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; onActivated: backend.askAgent("next") }
-    Shortcut { sequence: "O"; context: Qt.ApplicationShortcut; onActivated: backend.openFolder() }
+    Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: Qt.quit() }
+    Shortcut { sequence: "1"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: win.tab = 0 }
+    Shortcut { sequence: "2"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: win.tab = 1 }
+    Shortcut { sequence: "3"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: win.tab = 2 }
+    Shortcut { sequences: ["J", "Down"]; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: backend.selectClass(backend.currentIndex + 1) }
+    Shortcut { sequences: ["K", "Up"]; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: backend.selectClass(backend.currentIndex - 1) }
+    Shortcut { sequence: "N"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: backend.goToNow() }
+    Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: backend.askAgent("next") }
+    Shortcut { sequence: "O"; context: Qt.ApplicationShortcut; enabled: !win.setupVisible; onActivated: backend.openFolder() }
 
     Item {
         anchors.fill: parent
@@ -76,14 +82,20 @@ ApplicationWindow {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 textFormat: Text.PlainText
-                text: qsTr("OmaMastery keeps each class as plain files in %1, so you and your agent can both work on them. Start with made-up sample classes to see how it works.").arg(backend.root)
+                text: qsTr("OmaMastery keeps each class as plain files in %1, so you and your agent can both work on them. Bring in your classes from Canvas, or try made-up sample classes first.").arg(backend.root)
                 color: win.dim
             }
             Button {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: qsTr("Set up sample classes")
+                text: qsTr("Connect to Canvas")
                 highlighted: true
                 Material.foreground: theme.accentForeground
+                onClicked: win.openSetup()
+            }
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Try sample classes")
+                flat: true
                 onClicked: backend.setUpSample()
             }
         }
@@ -128,7 +140,7 @@ ApplicationWindow {
                             color: win.dim
                             text: {
                                 const c = backend.current
-                                let parts = [qsTr("%1 day · Block %2").arg(c.day).arg(c.block),
+                                let parts = [win.whenText(c),
                                              qsTr("%n students", "", backend.students.length)]
                                 if (backend.currentIndex === backend.nowIndex) parts.push(backend.nowText.split(" · ").slice(2).join(" · "))
                                 if (c.sample) parts.push(qsTr("sample class, made-up students"))
@@ -196,6 +208,13 @@ ApplicationWindow {
                     font.pixelSize: 13
                 }
             }
+        }
+
+        // ---- One-time setup (omamastery://setup) ----
+        SetupView {
+            anchors.fill: parent
+            visible: win.setupVisible
+            onClosed: win.setupVisible = false
         }
 
         // ---- Keyboard help ----

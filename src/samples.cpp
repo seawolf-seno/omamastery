@@ -285,7 +285,8 @@ as you save, so the teacher sees your changes immediately.
 
 - `schedule.toml`: A/B days, Friday rotation, days off, bell times.
 - `<class>/class.toml`: name, course, `day` ("A" or "B"), `block`, `room`
-  (the Veyon room in OmaClass), `sample` (true = made-up students), `students`.
+  (the Veyon room in OmaClass), `sample` (true = made-up students), `students`
+  (sample classes only; a real class keeps its students in `roster.toml`).
 - `<class>/ideas.toml`: the course's core ideas from "One Body, Many Members",
   each with the shared `joint` it connects to across subjects.
 - `<class>/plan.toml`: learning objectives as `[[objective]]` tables with
@@ -297,6 +298,9 @@ as you save, so the teacher sees your changes immediately.
 - `<class>/notes.md`: the planning hub. Newest entry on top, under a dated
   `## ` heading.
 - `<class>/long-range-plan.*`: the teacher's long-range plan, if they added one.
+- `<class>/syllabus.md`, `<class>/canvas-plan.md`: the course's Canvas syllabus
+  and modules, read at setup. No student data.
+- `<class>/roster.toml`: a real class's students. Private; see below.
 
 ## Rules
 
@@ -311,8 +315,34 @@ as you save, so the teacher sees your changes immediately.
 - Words, not scores. No points, badges, streaks, or failure language.
 - Student records are private (FERPA). Real student names stay on this
   computer unless the school's AI policy allows sharing them with you. Until
-  then, classes with `sample = true` are the only ones to work with.
+  then, classes with `sample = true` are the only ones to work with fully.
+)" + realClassRules();
+}
+
+QString Samples::realClassRules() {
+    return R"(
+## Real classes (`sample = false`)
+
+Their course plans hold no student data, so you may help with them: read and
+edit `class.toml`, `plan.toml` and `ideas.toml`, and read `long-range-plan.*`,
+`syllabus.md`, `canvas-plan.md` and `schedule.toml`.
+
+Never open `roster.toml`, `mastery.csv` or `notes.md` in a real class: they
+hold real students' names and the teacher's notes about them. Never write a
+student's name anywhere.
 )";
+}
+
+void Samples::addRealClassRules(const QString &agentsPath) {
+    QFile file(agentsPath);
+    if (!file.open(QIODevice::ReadWrite))
+        return;
+    const QByteArray text = file.readAll();
+    // Added once, below whatever the teacher already has.
+    if (text.contains("roster.toml"))
+        return;
+    file.seek(file.size());
+    file.write(realClassRules().toUtf8());
 }
 
 bool Samples::init(const QString &root, bool withSampleClasses, QString *report, QString *error) {

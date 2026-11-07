@@ -8,3 +8,4 @@ Terminal=false
 Categories=Education;Office;
 Keywords=gradebook;mastery;teacher;class;planning;
 StartupWMClass=omamastery
+MimeType=x-scheme-handler/omamastery;
