@@ -41,10 +41,12 @@ terminal, `omamastery setup`). Then:
 2. Optionally sign in to Blackbaud for A/B days, blocks, rooms and bell times.
 3. Tick your classes.
 
-Each class gets its folder: Canvas Outcomes (or modules) become a first
-`plan.toml`, and the syllabus and modules are saved for planning. Drop in your
-long-range plan and press "Draft objectives", and your agent writes the
-objectives and core ideas. OmaClass picks up the classes and rooms
+Each class gets its folder. Its assignments become a first `plan.toml`, one
+objective per assignment in the week it's due. Work in an assignment group
+named "Non-Mastery Assignments" is left out. A course with none falls back to
+its Canvas Outcomes, then its modules. The syllabus and modules are saved for
+planning. Drop in your long-range plan and press "Draft objectives", and
+your agent ties each objective to a core idea. OmaClass picks up the classes and rooms
 by itself. Run setup again each term: it refreshes rosters and keeps your
 plans, mastery and any names you changed.
 

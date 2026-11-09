@@ -62,6 +62,13 @@ struct MeetingBlock { // one block's bell times, read from Blackbaud meetings
 QVector<ClassDraft> draftsFromCanvasCourses(const QJsonArray &courses);
 // GET /api/v1/courses/:id/users?enrollment_type[]=student
 QVector<Student> studentsFromCanvas(const QJsonArray &users);
+// GET /api/v1/courses/:id/assignment_groups?include[]=assignments: every
+// assignment outside the "Non-Mastery Assignments" group is an objective, in
+// the week it's due. The first choice; Outcomes and then Modules fill in for
+// a course where that leaves nothing.
+void objectivesFromAssignmentGroups(const QJsonArray &groups, ClassDraft *draft);
+bool isNonMasteryGroup(const QString &name);
+QJsonArray assignmentsIn(const QJsonArray &groups);
 // GET /api/v1/courses/:id/outcome_group_links?outcome_style=full
 void objectivesFromOutcomes(const QJsonArray &links, ClassDraft *draft);
 // GET /api/v1/courses/:id/modules?include[]=items and /assignments: one

@@ -56,18 +56,26 @@ has "$csp/ideas.toml" 'name = "Data"'
 has "$csp/syllabus.md" '- Labs'
 has "$csp/syllabus.md" 'We build & test.'
 
-# Robotics: Canvas Modules (housekeeping module skipped), weeks from dates;
-# matched to Blackbaud by name; two Sams told apart.
+# Robotics: objectives are its assignments outside "Non-Mastery Assignments"
+# (any capitalization), in the week each is due, undated last; matched to
+# Blackbaud by name; two Sams told apart.
 has "$robo/class.toml" 'day = "B"'
 has "$robo/class.toml" 'block = 3'
 has "$robo/class.toml" 'room = "Room 110"'
 has "$robo/roster.toml" 'name = "Sam A."'
 has "$robo/roster.toml" 'name = "Sam B."'
-has "$robo/plan.toml" 'title = "Unit 1: Build a drivetrain"'
+titles="$(grep '^title' "$robo/plan.toml" | tr '\n' '|')"
+[[ $titles == 'title = "Gear ratios quiz"|title = "Drivetrain build"|title = "Line follower"|title = "Final robot"|' ]] \
+  || fail "robotics objectives: $titles"
 has "$robo/plan.toml" 'week = "2026-09-07"'
+has "$robo/plan.toml" 'week = "2026-09-14"'
 has "$robo/plan.toml" 'week = "2026-10-05"'
-lacks "$robo/plan.toml" 'Start Here'
+has "$robo/plan.toml" 'From your Canvas assignments'
+lacks "$robo/plan.toml" 'Homework 1'
+lacks "$robo/plan.toml" 'Unit 1'
 has "$robo/canvas-plan.md" 'Gear ratios quiz (Quiz, due 2026-09-09)'
+has "$robo/canvas-plan.md" '## Unit 2: Sensors (week of 2026-10-05)'
+lacks "$csp/plan.toml" 'Syllabus quiz'
 
 # Bell times for the blocks Blackbaud knows replace placeholders; the other
 # blocks stay, still marked as placeholders.

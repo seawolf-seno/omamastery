@@ -49,11 +49,19 @@ MODULES = {
          "items": [{"title": "Sensors", "type": "SubHeader"}, {"title": "Line follower", "type": "Assignment", "content_id": 32}]},
     ],
 }
-ASSIGNMENTS = {
-    "101": [],
-    "102": [{"id": 31, "name": "Drivetrain build", "due_at": "2026-09-17T06:59:00Z"},
-            {"id": 33, "name": "Gear ratios quiz", "quiz_id": 77, "due_at": "2026-09-10T06:59:00Z"},
-            {"id": 32, "name": "Line follower", "due_at": "2026-10-09T06:59:00Z"}],
+# CSP has only non-mastery work, so its objectives fall back to Outcomes.
+ASSIGNMENT_GROUPS = {
+    "101": [{"id": 1, "name": "Non-Mastery Assignments", "position": 1,
+             "assignments": [{"id": 21, "name": "Syllabus quiz", "due_at": "2026-08-28T06:59:00Z"}]}],
+    "102": [{"id": 2, "name": "Mastery Checks", "position": 1,
+             "assignments": [{"id": 31, "name": "Drivetrain build", "position": 1, "due_at": "2026-09-17T06:59:00Z"},
+                             {"id": 32, "name": "Line follower", "position": 2, "due_at": "2026-10-09T06:59:00Z"},
+                             {"id": 34, "name": "Final robot", "position": 4, "due_at": None}]},
+            {"id": 3, "name": "Labs", "position": 2,
+             "assignments": [{"id": 33, "name": "Gear ratios quiz", "quiz_id": 77, "position": 1,
+                              "due_at": "2026-09-10T06:59:00Z"}]},
+            {"id": 4, "name": "non-mastery assignments", "position": 3,
+             "assignments": [{"id": 35, "name": "Homework 1", "due_at": "2026-09-03T06:59:00Z"}]}],
 }
 SECTIONS = [
     {"id": 5001, "course_title": "AP Computer Science Principles", "section_identifier": "1A"},
@@ -115,8 +123,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, OUTCOMES[cid])
             if rest[2:] == ["modules"]:
                 return self.send(200, MODULES.get(cid, []))
-            if rest[2:] == ["assignments"]:
-                return self.send(200, ASSIGNMENTS.get(cid, []))
+            if rest[2:] == ["assignment_groups"]:
+                assert q.get("include[]") == ["assignments"]
+                return self.send(200, ASSIGNMENT_GROUPS.get(cid, []))
             if len(rest) == 2:
                 return self.send(200, {"id": int(cid), "syllabus_body": "<h2>About</h2><p>We build &amp; test.</p><ul><li>Labs</li></ul>"})
         if url.path.startswith("/school/v1/"):

@@ -197,6 +197,59 @@ QVector<Student> studentsFromCanvas(const QJsonArray &users) {
     return disambiguate(students, lastNames);
 }
 
+bool isNonMasteryGroup(const QString &name) {
+    static const QRegularExpression nonMastery(R"(^\s*non[\s_-]*mastery\b)", QRegularExpression::CaseInsensitiveOption);
+    return nonMastery.match(name).hasMatch();
+}
+
+QJsonArray assignmentsIn(const QJsonArray &groups) {
+    QJsonArray all;
+    for (const auto &group : groups)
+        for (const auto &a : group.toObject().value("assignments").toArray())
+            all.append(a);
+    return all;
+}
+
+void objectivesFromAssignmentGroups(const QJsonArray &groups, ClassDraft *draft) {
+    struct Row {
+        DraftObjective objective;
+        int group = 0;
+        int position = 0;
+    };
+    QVector<Row> rows;
+    for (const auto &groupValue : groups) {
+        const QJsonObject group = groupValue.toObject();
+        if (isNonMasteryGroup(text(group, {"name"})))
+            continue;
+        const int groupPosition = group.value("position").toInt();
+        for (const auto &value : group.value("assignments").toArray()) {
+            const QJsonObject a = value.toObject();
+            const QString name = text(a, {"name"});
+            if (name.isEmpty())
+                continue;
+            QDate when = localDate(text(a, {"due_at"}));
+            if (!when.isValid())
+                when = localDate(text(a, {"unlock_at"}));
+            rows.append({{QString(), name, QString(), monday(when)}, groupPosition, a.value("position").toInt()});
+        }
+    }
+    // In teaching order: by the week it's due, undated ones last.
+    std::stable_sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+        if (a.objective.week.isValid() != b.objective.week.isValid())
+            return a.objective.week.isValid();
+        if (a.objective.week != b.objective.week)
+            return a.objective.week < b.objective.week;
+        return a.group != b.group ? a.group < b.group : a.position < b.position;
+    });
+    QSet<QString> taken;
+    for (auto &row : rows) {
+        row.objective.id = uniqueId(slug(row.objective.title), &taken);
+        draft->objectives.append(row.objective);
+    }
+    if (!rows.isEmpty())
+        draft->planSource = QStringLiteral("Canvas assignments");
+}
+
 void objectivesFromOutcomes(const QJsonArray &links, ClassDraft *draft) {
     QSet<QString> taken;
     for (const auto &o : draft->objectives)
@@ -577,6 +630,9 @@ QString planToml(const ClassDraft &d) {
     if (d.planSource == "Canvas Modules")
         out += QStringLiteral("#\n# First draft from your Canvas modules: one per module. Your agent can turn\n"
                               "# them into objectives a student can do (\"Draft objectives\").\n");
+    else if (d.planSource == "Canvas assignments")
+        out += QStringLiteral("#\n# From your Canvas assignments (all but \"Non-Mastery Assignments\"), in the week\n"
+                              "# each is due. Your agent can tie each to a core idea (\"Draft objectives\").\n");
     else if (d.planSource == "Canvas Outcomes")
         out += QStringLiteral("#\n# From your Canvas Outcomes. Undated ones wait for \"Space across the semester\".\n");
     else

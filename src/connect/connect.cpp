@@ -467,15 +467,25 @@ bool fill(const Settings &s, const QString &canvasToken, const QString &blackbau
             }
             d.students = Importer::studentsFromCanvas(users);
 
+            // Objectives: graded assignments outside "Non-Mastery Assignments"
+            // first, then Outcomes, then one per module.
             QString soft;
-            const QJsonArray outcomes = canvas.getAll(canvasUrl(s, base + "/outcome_group_links", {{"outcome_style", "full"}, {"per_page", "100"}}), &soft);
-            Importer::objectivesFromOutcomes(outcomes, &d);
+            const QJsonArray groups = canvas.getAll(
+                canvasUrl(s, base + "/assignment_groups", {{"include[]", "assignments"}, {"per_page", "100"}}), &soft);
+            if (!soft.isEmpty())
+                r->warnings << QStringLiteral("%1: assignments not read (%2)").arg(d.name, soft);
+            Importer::objectivesFromAssignmentGroups(groups, &d);
+            if (d.objectives.isEmpty()) {
+                soft.clear();
+                const QJsonArray outcomes = canvas.getAll(
+                    canvasUrl(s, base + "/outcome_group_links", {{"outcome_style", "full"}, {"per_page", "100"}}), &soft);
+                Importer::objectivesFromOutcomes(outcomes, &d);
+            }
             soft.clear();
             const QJsonArray modules = canvas.getAll(canvasUrl(s, base + "/modules", {{"include[]", "items"}, {"per_page", "100"}}), &soft);
-            const QJsonArray assignments = soft.isEmpty() ? canvas.getAll(canvasUrl(s, base + "/assignments", {{"per_page", "100"}}), &soft) : QJsonArray();
             if (!soft.isEmpty())
                 r->warnings << QStringLiteral("%1: modules not read (%2)").arg(d.name, soft);
-            Importer::objectivesFromModules(modules, assignments, &d);
+            Importer::objectivesFromModules(modules, Importer::assignmentsIn(groups), &d);
             const Http::Reply course = canvas.get(canvasUrl(s, base, {{"include[]", "syllabus_body"}}));
             if (course.ok())
                 d.syllabus = Importer::syllabusText(course.json.object().value("syllabus_body").toString());

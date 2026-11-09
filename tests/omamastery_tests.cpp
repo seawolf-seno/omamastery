@@ -213,6 +213,13 @@ private slots:
         QCOMPARE(names, QStringList({"Sam A.", "Sam B.", "Lio", "Ana Cole", "Ana Cruz"}));
     }
 
+    void setupSkipsTheNonMasteryGroup() {
+        for (const char *name : {"Non-Mastery Assignments", "non-mastery assignments", "Non Mastery", " NonMastery work"})
+            QVERIFY2(Importer::isNonMasteryGroup(name), name);
+        for (const char *name : {"Mastery Checks", "Assignments", "Labs (non-mastery)", "Nonmasterywork"})
+            QVERIFY2(!Importer::isNonMasteryGroup(name), name);
+    }
+
     void setupMakesShortFolderNames() {
         QCOMPARE(Importer::slug("AP Computer Science Principles - Block 1A"), QString("ap-computer-science-principles-block-1a"));
         QCOMPARE(Importer::slug("  Español: Nivel II! "), QString("espa-ol-nivel-ii"));
