@@ -177,13 +177,42 @@ QHash<QString, QString> Classbook::loadMastery(const QString &csvPath) {
     return levels;
 }
 
+QHash<QString, QString> Classbook::loadMasteryNotes(const QString &csvPath) {
+    QHash<QString, QString> notes;
+    QFile file(csvPath);
+    if (!file.open(QIODevice::ReadOnly))
+        return notes;
+    const auto rows = parseCsv(QString::fromUtf8(file.readAll()));
+    for (int i = 0; i < rows.size(); ++i) {
+        const auto &row = rows[i];
+        if (row.size() < 4 || (i == 0 && row[0] == "date") || !levels().contains(row[3].trimmed()))
+            continue;
+        const QDate date = QDate::fromString(row[0].trimmed(), Qt::ISODate);
+        const QString evidence = row.value(4).trimmed();
+        QStringList parts;
+        if (!evidence.isEmpty())
+            parts << evidence;
+        if (date.isValid())
+            parts << date.toString("MMM d");
+        notes.insert(masteryKey(row[1].trimmed(), row[2].trimmed()), parts.join(" · "));
+    }
+    return notes;
+}
+
 bool Classbook::appendMastery(const QString &csvPath, const QDate &date, const QString &student,
                               const QString &objective, const QString &level, const QString &evidence,
                               QString *error) {
-    if (!levels().contains(level)) {
-        if (error)
-            *error = QStringLiteral("Unknown level: %1").arg(level);
-        return false;
+    return appendMasteryRows(csvPath, date, {{student, objective, level, evidence}}, error);
+}
+
+bool Classbook::appendMasteryRows(const QString &csvPath, const QDate &date, const QVector<MasteryRow> &rows,
+                                  QString *error) {
+    for (const auto &row : rows) {
+        if (!levels().contains(row.level)) {
+            if (error)
+                *error = QStringLiteral("Unknown level: %1").arg(row.level);
+            return false;
+        }
     }
     QByteArray contents;
     QFile existing(csvPath);
@@ -195,12 +224,14 @@ bool Classbook::appendMastery(const QString &csvPath, const QDate &date, const Q
         contents = "date,student,objective,level,evidence\n";
     if (!contents.endsWith('\n'))
         contents.append('\n');
-    const QStringList fields{date.toString(Qt::ISODate), student, objective, level, evidence};
-    QStringList quoted;
-    for (const auto &field : fields)
-        quoted.append(csvField(field));
-    contents.append(quoted.join(',').toUtf8());
-    contents.append('\n');
+    for (const auto &row : rows) {
+        const QStringList fields{date.toString(Qt::ISODate), row.student, row.objective, row.level, row.evidence};
+        QStringList quoted;
+        for (const auto &field : fields)
+            quoted.append(csvField(field));
+        contents.append(quoted.join(',').toUtf8());
+        contents.append('\n');
+    }
 
     // Written beside the target and renamed, so a crash never leaves half a log.
     QSaveFile file(csvPath);

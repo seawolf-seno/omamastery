@@ -69,10 +69,22 @@ public:
     // mastery.csv is an append-only log: date,student,objective,level,evidence.
     // The latest row for a student and objective is their current level.
     static QHash<QString, QString> loadMastery(const QString &csvPath);
+    // The same, with where each current level came from: "From Canvas: 9 of 10 · Oct 10".
+    static QHash<QString, QString> loadMasteryNotes(const QString &csvPath);
     static QString masteryKey(const QString &student, const QString &objective);
     static bool appendMastery(const QString &csvPath, const QDate &date, const QString &student,
                               const QString &objective, const QString &level, const QString &evidence,
                               QString *error = nullptr);
+
+    // Several rows in one write (filling a whole objective). Same rules as appendMastery.
+    struct MasteryRow {
+        QString student;
+        QString objective;
+        QString level;
+        QString evidence;
+    };
+    static bool appendMasteryRows(const QString &csvPath, const QDate &date, const QVector<MasteryRow> &rows,
+                                  QString *error = nullptr);
 
     static QDate weekStart(const QDate &date);
     static NowInfo now(const QVector<ClassInfo> &classes, const Schedule &schedule, const QDateTime &when);

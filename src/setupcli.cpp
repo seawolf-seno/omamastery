@@ -188,7 +188,9 @@ int SetupCli::run(const QStringList &arguments) {
         for (const auto &d : result.classes)
             if (d.selected)
                 out() << "  " << d.name << ": " << d.students.size() << " students, " << d.objectives.size() << " objectives"
-                      << (d.planSource.isEmpty() ? QString() : " from " + d.planSource) << "\n";
+                      << (d.planSource.isEmpty() ? QString() : " from " + d.planSource)
+                      << (d.scores.isEmpty() ? QString() : QStringLiteral(", %1 graded scores for starting levels").arg(d.scores.size()))
+                      << "\n";
     } else {
         const Connect::WriteResult written = Connect::write(book.root(), result);
         if (!written.error.isEmpty()) {

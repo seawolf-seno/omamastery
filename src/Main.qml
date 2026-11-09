@@ -226,7 +226,7 @@ ApplicationWindow {
 
             Rectangle {
                 anchors.centerIn: parent
-                width: 420
+                width: 520
                 height: helpColumn.implicitHeight + 48
                 radius: theme.radius
                 color: win.surface
@@ -246,6 +246,9 @@ ApplicationWindow {
                             ["Space", qsTr("Plan next steps with your agent")],
                             ["O", qsTr("Open the class folder")],
                             [qsTr("Click / right-click"), qsTr("Raise or lower a mastery level")],
+                            [qsTr("Arrows"), qsTr("Move between cells (after clicking one)")],
+                            ["N B D P E", qsTr("Not yet, Beginning, Developing, Proficient, Extending")],
+                            [qsTr("Click a heading"), qsTr("Fill an objective's empty cells")],
                             ["?", qsTr("This help")],
                             ["Q", qsTr("Quit")]
                         ]

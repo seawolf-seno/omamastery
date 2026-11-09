@@ -271,6 +271,19 @@ label = "Spring Break"
 from = "2027-05-17"
 to = "2027-05-20"
 label = "Finals"
+)" + scoreLevelsToml();
+}
+
+QString Samples::scoreLevelsToml() {
+    return R"(
+# Starting mastery levels from Canvas grades, as a percent of the points.
+# Mastery work is out of 10: 10 Extending, 9 Proficient, 8 Developing,
+# 7 Beginning, below that Not yet. Setup only fills cells that are still empty.
+[score_levels]
+Extending = 100
+Proficient = 90
+Developing = 80
+Beginning = 70
 )";
 }
 

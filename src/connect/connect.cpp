@@ -170,6 +170,14 @@ QString currentSchoolYear(const Http &sky, const Settings &s, QString *error) {
 
 } // namespace
 
+void addScoreLevels(const QString &schedulePath) {
+    QFile file(schedulePath);
+    if (!file.open(QIODevice::ReadWrite) || file.readAll().contains("[score_levels]"))
+        return;
+    file.seek(file.size());
+    file.write(Samples::scoreLevelsToml().toUtf8());
+}
+
 // ---------------------------------------------------------------- Settings
 
 QString Settings::normalizeCanvasUrl(const QString &input) {
@@ -475,6 +483,17 @@ bool fill(const Settings &s, const QString &canvasToken, const QString &blackbau
             if (!soft.isEmpty())
                 r->warnings << QStringLiteral("%1: assignments not read (%2)").arg(d.name, soft);
             Importer::objectivesFromAssignmentGroups(groups, &d);
+            // Graded work on those assignments: each becomes a starting level.
+            if (d.planSource == "Canvas assignments") {
+                soft.clear();
+                const QJsonArray submissions = canvas.getAll(
+                    canvasUrl(s, base + "/students/submissions",
+                              {{"student_ids[]", "all"}, {"workflow_state", "graded"}, {"per_page", "100"}}),
+                    &soft);
+                if (!soft.isEmpty())
+                    r->warnings << QStringLiteral("%1: grades not read (%2)").arg(d.name, soft);
+                d.scores = Importer::scoresFromCanvas(submissions);
+            }
             if (d.objectives.isEmpty()) {
                 soft.clear();
                 const QJsonArray outcomes = canvas.getAll(
@@ -532,11 +551,21 @@ WriteResult write(const QString &root, const PullResult &pulled) {
         if (d.selected)
             chosen.append(d);
     Importer::assignIds(root, &chosen);
+    // Cutoffs for starting levels live in schedule.toml, where the teacher can change them.
+    addScoreLevels(root + "/schedule.toml");
+    const Importer::ScoreLevels levels = Importer::loadScoreLevels(root + "/schedule.toml");
     for (const auto &d : chosen) {
         if (!Importer::writeClass(root, d, &report, &error)) {
             w.error = error;
             return w;
         }
+        const int seeded = Importer::seedLevels(root + "/" + d.id, d, levels, &error);
+        if (seeded < 0) {
+            w.error = error;
+            return w;
+        }
+        if (seeded > 0)
+            report += QStringLiteral(", %1 starting levels from Canvas grades").arg(seeded);
         w.lines << report;
     }
     if (Importer::writeBellTimes(root + "/schedule.toml", pulled.bells, &report))

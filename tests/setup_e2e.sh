@@ -74,6 +74,19 @@ has "$robo/plan.toml" 'From your Canvas assignments'
 lacks "$robo/plan.toml" 'Homework 1'
 lacks "$robo/plan.toml" 'Unit 1'
 has "$robo/canvas-plan.md" 'Gear ratios quiz (Quiz, due 2026-09-09)'
+
+# Starting levels from Canvas grades (out of 10: 10 Extending, 9 Proficient,
+# 8 Developing, 7 Beginning, less Not yet); a level word wins; ungraded stays blank.
+has "$robo/plan.toml" 'canvas_assignment = "31"'
+has "$robo/mastery.csv" '2026-09-18,Sam A.,drivetrain-build,Extending,From Canvas: 10 of 10'
+has "$robo/mastery.csv" '2026-10-10,Sam A.,line-follower,Proficient,From Canvas: 9.5 of 10'
+has "$robo/mastery.csv" '2026-09-18,Sam B.,drivetrain-build,Beginning,From Canvas: 7 of 10'
+has "$robo/mastery.csv" '2026-09-11,Sam B.,gear-ratios-quiz,Developing,From Canvas: 3 of 4'
+has "$robo/mastery.csv" '2026-09-19,Lio,drivetrain-build,Not yet,From Canvas: 0 of 10'
+lacks "$robo/mastery.csv" 'Lio,line-follower'
+[[ $(grep -c 'From Canvas' "$robo/mastery.csv") == 5 ]] || fail "starting levels: $(cat "$robo/mastery.csv" | wc -l) lines"
+has "$C/schedule.toml" '[score_levels]'
+[[ $out == *"robotics: 3 students, 4 objectives, B3, room Room 110, 5 starting levels from Canvas grades"* ]] || fail "report: $out"
 has "$robo/canvas-plan.md" '## Unit 2: Sensors (week of 2026-10-05)'
 lacks "$csp/plan.toml" 'Syllabus quiz'
 
@@ -90,6 +103,9 @@ json="$("$BIN" classes --json)"
 [[ $json == *'"room":"Lab 204"'* && $json == *'"Mara"'* ]] || fail "classes --json: $json"
 
 # Running setup again refreshes rosters and keeps the teacher's plan.
+# Running setup again never changes a level that's set.
+echo '2026-11-01,Sam B.,drivetrain-build,Proficient,Set in OmaMastery' >> "$robo/mastery.csv"
+
 # Running setup again also keeps names the teacher changed in roster.toml.
 echo '# my edit' >> "$robo/plan.toml"
 sed -i 's/name = "Sam A."/name = "Sammy"/' "$robo/roster.toml"
@@ -97,6 +113,11 @@ sed -i 's/name = "Sam A."/name = "Sammy"/' "$robo/roster.toml"
 has "$robo/plan.toml" '# my edit'
 has "$robo/roster.toml" 'name = "Sammy"'
 lacks "$robo/roster.toml" 'name = "Sam A."'
+# Sam B.'s level set by the teacher stays; nobody whose name is unchanged gets
+# new rows. (Sam A. was renamed, so "Sammy" starts with empty cells and is seeded.)
+[[ $(grep -c '^[^,]*,Sam B\.,' "$robo/mastery.csv") == 3 ]] || fail "rerun touched Sam B."
+[[ $(grep -c '^[^,]*,Lio,' "$robo/mastery.csv") == 1 ]] || fail "rerun touched Lio"
+[[ $(tail -n 1 "$robo/mastery.csv" | cut -d, -f2) == "Sammy" ]] || fail "rerun: $(tail -n 2 "$robo/mastery.csv")"
 [[ $(find "$C" -mindepth 1 -maxdepth 1 -type d | wc -l) == 2 ]] || fail "rerun made new folders: $(ls "$C")"
 [[ $(grep -c 'Bell schedule' "$C/schedule.toml") == 1 ]] || fail "bell note repeated on rerun"
 

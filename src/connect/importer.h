@@ -29,6 +29,26 @@ struct DraftObjective {
     QString title;
     QString idea;
     QDate week; // Monday, or invalid when not yet scheduled
+    QString canvasAssignment; // the Canvas assignment it came from, if any
+    double points = 0;        // that assignment's points possible
+};
+
+// One student's graded Canvas submission.
+struct Score {
+    QString canvasUser;
+    QString assignment;
+    double score = -1; // -1 when Canvas has no score
+    QString grade;     // Canvas's grade text: "9", "90%", or a word like "Proficient"
+    QDate graded;
+};
+
+// Score → starting level cutoffs, as a percent of the points. With mastery
+// work out of 10: 10 Extending, 9 Proficient, 8 Developing, 7 Beginning.
+struct ScoreLevels {
+    double extending = 100;
+    double proficient = 90;
+    double developing = 80;
+    double beginning = 70;
 };
 
 struct ClassDraft {
@@ -44,6 +64,7 @@ struct ClassDraft {
     int studentCount = -1;      // from the course list, before any roster is read
     QVector<Student> students;
     QVector<DraftObjective> objectives;
+    QVector<Score> scores;      // graded work on the assignment objectives
     QStringList ideas;          // core-idea names found in Canvas (Outcome groups)
     QString planSource;         // "Canvas Outcomes", "Canvas Modules" or empty
     QString canvasPlan;         // canvas-plan.md: modules, items and dates
@@ -69,6 +90,18 @@ QVector<Student> studentsFromCanvas(const QJsonArray &users);
 void objectivesFromAssignmentGroups(const QJsonArray &groups, ClassDraft *draft);
 bool isNonMasteryGroup(const QString &name);
 QJsonArray assignmentsIn(const QJsonArray &groups);
+// GET /api/v1/courses/:id/students/submissions?student_ids[]=all: graded ones only.
+QVector<Score> scoresFromCanvas(const QJsonArray &submissions);
+// [score_levels] in schedule.toml, or the defaults.
+ScoreLevels loadScoreLevels(const QString &schedulePath);
+// The starting level for a score: a level word Canvas already gave wins;
+// otherwise the percent of points against the cutoffs. Empty when ungraded.
+QString levelForScore(const Score &score, double points, const ScoreLevels &levels);
+// Writes a starting level into mastery.csv for every graded assignment
+// objective whose cell is still empty. Never changes a level already there.
+// Returns how many it wrote, or -1 on error.
+int seedLevels(const QString &classDir, const ClassDraft &draft, const ScoreLevels &levels, QString *error);
+
 // GET /api/v1/courses/:id/outcome_group_links?outcome_style=full
 void objectivesFromOutcomes(const QJsonArray &links, ClassDraft *draft);
 // GET /api/v1/courses/:id/modules?include[]=items and /assignments: one

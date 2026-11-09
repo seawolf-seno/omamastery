@@ -74,11 +74,13 @@ void Backend::reload() {
 
 void Backend::loadCurrentFiles() {
     m_mastery.clear();
+    m_levelNotes.clear();
     m_notes.clear();
     if (m_current < 0)
         return;
     const QString dir = m_classes[m_current].dir;
     m_mastery = Classbook::loadMastery(dir + "/mastery.csv");
+    m_levelNotes = Classbook::loadMasteryNotes(dir + "/mastery.csv");
     QFile notes(dir + "/notes.md");
     if (notes.open(QIODevice::ReadOnly))
         m_notes = QString::fromUtf8(notes.readAll().left(200 * 1024));
@@ -167,6 +169,42 @@ QVariantList Backend::objectives() const {
     return list;
 }
 
+QVariantMap Backend::levelNotes() const {
+    QVariantMap map;
+    for (auto it = m_levelNotes.begin(); it != m_levelNotes.end(); ++it) {
+        QString key = it.key();
+        key.replace(QChar(0x1f), '|');
+        map.insert(key, it.value());
+    }
+    return map;
+}
+
+int Backend::fillObjective(const QString &objective, const QString &level) {
+    if (m_current < 0 || !Classbook::levels().contains(level))
+        return 0;
+    QVector<Classbook::MasteryRow> rows;
+    for (const auto &student : m_classes[m_current].students)
+        if (!m_mastery.contains(Classbook::masteryKey(student, objective)))
+            rows.append({student, objective, level, QStringLiteral("Set for the whole objective in OmaMastery")});
+    if (rows.isEmpty()) {
+        say(tr("Everyone already has a level for this objective."));
+        return 0;
+    }
+    QString error;
+    if (!Classbook::appendMasteryRows(m_classes[m_current].dir + "/mastery.csv", clock().date(), rows, &error)) {
+        say(error);
+        return 0;
+    }
+    for (const auto &row : rows) {
+        m_mastery.insert(Classbook::masteryKey(row.student, objective), level);
+        m_levelNotes.insert(Classbook::masteryKey(row.student, objective),
+                            row.evidence + " · " + clock().date().toString("MMM d"));
+    }
+    say(tr("Set %n empty cells to %1", nullptr, int(rows.size())).arg(tr(level.toUtf8().constData())));
+    emit changed();
+    return int(rows.size());
+}
+
 QVariantMap Backend::levels() const {
     QVariantMap map;
     for (auto it = m_mastery.begin(); it != m_mastery.end(); ++it) {
@@ -210,6 +248,8 @@ void Backend::setLevel(const QString &student, const QString &objective, const Q
     }
     // Shown right away; the file watcher confirms it a moment later.
     m_mastery.insert(Classbook::masteryKey(student, objective), level);
+    m_levelNotes.insert(Classbook::masteryKey(student, objective),
+                        QStringLiteral("Set in OmaMastery · ") + clock().date().toString("MMM d"));
     emit changed();
 }
 

@@ -138,6 +138,35 @@ private slots:
                  QString("Developing"));
     }
 
+    void fillingAnObjectiveOnlyTouchesEmptyCells() {
+        QTemporaryDir dir;
+        QString report, error;
+        QVERIFY(Samples::init(dir.path(), true, &report, &error));
+        Backend backend(dir.path());
+        backend.setClock(QDateTime(QDate(2026, 11, 9), QTime(8, 30)));
+        backend.reload();
+        backend.selectClassId("ap-csp");
+        const QString objective = "csp-variables";
+        const QString csv = dir.path() + "/ap-csp/mastery.csv";
+        QFile::setPermissions(csv, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        const QStringList students = backend.students();
+        QVERIFY(students.size() > 2);
+        // Empty two cells by starting from a log without them.
+        QVERIFY(QFile::remove(csv));
+        QVERIFY(Classbook::appendMastery(csv, QDate(2026, 9, 1), students[0], objective, "Extending", "From Canvas: 10 of 10"));
+        QFile::setPermissions(csv, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        backend.reload();
+        QCOMPARE(backend.fillObjective(objective, "Proficient"), int(students.size()) - 1);
+        QCOMPARE(backend.levels().value(students[0] + "|" + objective).toString(), QString("Extending"));
+        QCOMPARE(backend.levels().value(students[1] + "|" + objective).toString(), QString("Proficient"));
+        QCOMPARE(backend.fillObjective(objective, "Beginning"), 0);
+        backend.reload();
+        QCOMPARE(backend.levelNotes().value(students[0] + "|" + objective).toString(), QString("From Canvas: 10 of 10 · Sep 1"));
+        QVERIFY(backend.levelNotes().value(students[1] + "|" + objective).toString().startsWith("Set for the whole objective"));
+        // Saving from the app keeps a private log private.
+        QCOMPARE(QFile(csv).permissions() & (QFileDevice::ReadOther | QFileDevice::ReadGroup), QFileDevice::Permissions());
+    }
+
     void backendSeesAnAgentsEdit() {
         QTemporaryDir dir;
         QString report, error;
@@ -218,6 +247,31 @@ private slots:
             QVERIFY2(Importer::isNonMasteryGroup(name), name);
         for (const char *name : {"Mastery Checks", "Assignments", "Labs (non-mastery)", "Nonmasterywork"})
             QVERIFY2(!Importer::isNonMasteryGroup(name), name);
+    }
+
+    void canvasScoresBecomeStartingLevels() {
+        const Importer::ScoreLevels levels; // the defaults: 10/9/8/7 of 10
+        auto level = [&](double score, double points = 10, const QString &grade = {}) {
+            Importer::Score s;
+            s.score = score;
+            s.grade = grade;
+            return Importer::levelForScore(s, points, levels);
+        };
+        QCOMPARE(level(10), QString("Extending"));
+        QCOMPARE(level(9.99), QString("Proficient"));
+        QCOMPARE(level(9), QString("Proficient"));
+        QCOMPARE(level(8), QString("Developing"));
+        QCOMPARE(level(7), QString("Beginning"));
+        QCOMPARE(level(6.9), QString("Not yet"));
+        QCOMPARE(level(0), QString("Not yet"));
+        QCOMPARE(level(3, 4, "proficient"), QString("Proficient")); // Canvas's own word wins
+        QCOMPARE(level(-1, 10, "85%"), QString("Developing"));
+        QCOMPARE(level(-1, 10), QString()); // ungraded: no starting level
+        QTemporaryDir dir;
+        write(dir.filePath("schedule.toml"), "[score_levels]\nExtending = 95\nProficient = 85\n");
+        const auto custom = Importer::loadScoreLevels(dir.filePath("schedule.toml"));
+        QCOMPARE(custom.extending, 95.0);
+        QCOMPARE(custom.developing, 80.0);
     }
 
     void setupMakesShortFolderNames() {

@@ -43,7 +43,10 @@ terminal, `omamastery setup`). Then:
 
 Each class gets its folder. Its assignments become a first `plan.toml`, one
 objective per assignment in the week it's due. Work in an assignment group
-named "Non-Mastery Assignments" is left out. A course with none falls back to
+named "Non-Mastery Assignments" is left out. Graded work becomes a starting
+level (out of 10: 10 Extending, 9 Proficient, 8 Developing, 7 Beginning, less
+Not yet; change the cutoffs under `[score_levels]` in `schedule.toml`). Setup
+only fills empty cells, so a level you set is never changed. A course with none falls back to
 its Canvas Outcomes, then its modules. The syllabus and modules are saved for
 planning. Drop in your long-range plan and press "Draft objectives", and
 your agent ties each objective to a core idea. OmaClass picks up the classes and rooms
@@ -81,6 +84,10 @@ address and Blackbaud app go in `/etc/omamastery/connect.toml` (see
 | `Space` | Plan next steps with your agent |
 | `O` | Open the class folder |
 | Click / right-click | Raise or lower a level |
+| Arrows | Move between cells, once one is selected |
+| `N` `B` `D` `P` `E` | Set Not yet, Beginning, Developing, Proficient, Extending, then move down |
+| Click a heading | Fill that objective's empty cells with one level |
+| Hover a cell | Where its level came from, and when |
 | `?` | Help |
 | `Q` | Quit |
 

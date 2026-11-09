@@ -12,6 +12,8 @@
 
 #include <toml++/toml.hpp>
 
+#include "../classbook.h"
+
 namespace Importer {
 
 namespace {
@@ -230,7 +232,8 @@ void objectivesFromAssignmentGroups(const QJsonArray &groups, ClassDraft *draft)
             QDate when = localDate(text(a, {"due_at"}));
             if (!when.isValid())
                 when = localDate(text(a, {"unlock_at"}));
-            rows.append({{QString(), name, QString(), monday(when)}, groupPosition, a.value("position").toInt()});
+            rows.append({{QString(), name, QString(), monday(when), text(a, {"id"}), a.value("points_possible").toDouble()},
+                         groupPosition, a.value("position").toInt()});
         }
     }
     // In teaching order: by the week it's due, undated ones last.
@@ -267,7 +270,7 @@ void objectivesFromOutcomes(const QJsonArray &links, ClassDraft *draft) {
             shown = !statement.isEmpty() && statement.size() <= 160 ? statement : title;
         if (shown.isEmpty())
             continue;
-        draft->objectives.append({uniqueId(slug(title.isEmpty() ? shown : title), &taken), shown, group, QDate()});
+        draft->objectives.append({uniqueId(slug(title.isEmpty() ? shown : title), &taken), shown, group, QDate(), QString(), 0});
         if (!group.isEmpty() && !draft->ideas.contains(group))
             draft->ideas.append(group);
     }
@@ -317,7 +320,7 @@ void objectivesFromModules(const QJsonArray &modules, const QJsonArray &assignme
         md += QStringLiteral("\n## %1%2\n\n").arg(name, week.isValid() ? QStringLiteral(" (week of %1)").arg(week.toString(Qt::ISODate)) : QString());
         md += lines.isEmpty() ? QStringLiteral("(no items)\n") : lines.join('\n') + '\n';
         if (addObjectives && !isHousekeeping(name))
-            draft->objectives.append({uniqueId(slug(name), &taken), name, QString(), week});
+            draft->objectives.append({uniqueId(slug(name), &taken), name, QString(), week, QString(), 0});
     }
     draft->canvasPlan = modules.isEmpty() ? QString() : md;
     if (addObjectives && !draft->objectives.isEmpty())
@@ -518,6 +521,146 @@ QVector<MeetingBlock> applyMeetings(const QJsonArray &meetings, const Schedule &
     return bells;
 }
 
+// ---------------------------------------------------------------- starting levels
+
+QVector<Score> scoresFromCanvas(const QJsonArray &submissions) {
+    QVector<Score> out;
+    for (const auto &value : submissions) {
+        const QJsonObject s = value.toObject();
+        Score score;
+        score.canvasUser = text(s, {"user_id"});
+        score.assignment = text(s, {"assignment_id"});
+        score.score = s.value("score").isDouble() ? s.value("score").toDouble() : -1;
+        score.grade = text(s, {"grade", "entered_grade"});
+        score.graded = localDate(text(s, {"graded_at"}));
+        if (score.canvasUser.isEmpty() || score.assignment.isEmpty() || (score.score < 0 && score.grade.isEmpty()))
+            continue;
+        out.append(score);
+    }
+    return out;
+}
+
+ScoreLevels loadScoreLevels(const QString &schedulePath) {
+    ScoreLevels levels;
+    try {
+        const toml::table t = toml::parse_file(schedulePath.toStdString());
+        if (const auto *cut = t["score_levels"].as_table()) {
+            auto read = [&](const char *key, double *out) {
+                if (auto v = (*cut)[key].value<double>())
+                    *out = *v;
+            };
+            read("Extending", &levels.extending);
+            read("Proficient", &levels.proficient);
+            read("Developing", &levels.developing);
+            read("Beginning", &levels.beginning);
+        }
+    } catch (const toml::parse_error &) {
+    }
+    return levels;
+}
+
+QString levelForScore(const Score &score, double points, const ScoreLevels &levels) {
+    for (const QString &level : Classbook::levels())
+        if (score.grade.trimmed().compare(level, Qt::CaseInsensitive) == 0)
+            return level;
+    double percent = -1;
+    if (score.score >= 0 && points > 0)
+        percent = 100.0 * score.score / points;
+    else if (score.grade.trimmed().endsWith('%'))
+        percent = score.grade.trimmed().chopped(1).toDouble();
+    if (percent < 0)
+        return {};
+    // A hair of slack for Canvas's rounding (9.99 of 10).
+    percent += 1e-6;
+    if (percent >= levels.extending)
+        return QStringLiteral("Extending");
+    if (percent >= levels.proficient)
+        return QStringLiteral("Proficient");
+    if (percent >= levels.developing)
+        return QStringLiteral("Developing");
+    if (percent >= levels.beginning)
+        return QStringLiteral("Beginning");
+    return QStringLiteral("Not yet");
+}
+
+int seedLevels(const QString &classDir, const ClassDraft &draft, const ScoreLevels &levels, QString *error) {
+    if (draft.scores.isEmpty())
+        return 0;
+    // Which objective each Canvas assignment is, from plan.toml as it is now
+    // (the teacher may have renamed or re-dated objectives since setup).
+    QHash<QString, QString> objectiveOf;
+    try {
+        const toml::table plan = toml::parse_file((classDir + "/plan.toml").toStdString());
+        if (const auto *list = plan["objective"].as_array())
+            for (const auto &item : *list)
+                if (const auto *row = item.as_table()) {
+                    const QString assignment = QString::fromStdString((*row)["canvas_assignment"].value_or(std::string()));
+                    if (!assignment.isEmpty())
+                        objectiveOf.insert(assignment, QString::fromStdString((*row)["id"].value_or(std::string())));
+                }
+    } catch (const toml::parse_error &) {
+        return 0;
+    }
+    QHash<QString, double> points;
+    for (const auto &o : draft.objectives)
+        if (!o.canvasAssignment.isEmpty())
+            points.insert(o.canvasAssignment, o.points);
+    // Students by Canvas id, under the names in roster.toml (which keeps renames).
+    QHash<QString, QString> studentOf;
+    try {
+        const toml::table roster = toml::parse_file((classDir + "/roster.toml").toStdString());
+        if (const auto *list = roster["student"].as_array())
+            for (const auto &item : *list)
+                if (const auto *row = item.as_table()) {
+                    const QString id = QString::fromStdString((*row)["canvas_id"].value_or(std::string()));
+                    if (!id.isEmpty())
+                        studentOf.insert(id, QString::fromStdString((*row)["name"].value_or(std::string())));
+                }
+    } catch (const toml::parse_error &) {
+        return 0;
+    }
+
+    const QString csvPath = classDir + "/mastery.csv";
+    const auto existing = Classbook::loadMastery(csvPath);
+    QFile in(csvPath);
+    QByteArray text = in.open(QIODevice::ReadOnly) ? in.readAll() : QByteArray();
+    in.close();
+    if (text.isEmpty())
+        text = "date,student,objective,level,evidence\n";
+    if (!text.endsWith('\n'))
+        text += '\n';
+    int written = 0;
+    QSet<QString> done;
+    for (const auto &score : draft.scores) {
+        const QString objective = objectiveOf.value(score.assignment);
+        const QString student = studentOf.value(score.canvasUser);
+        if (objective.isEmpty() || student.isEmpty())
+            continue;
+        const QString key = Classbook::masteryKey(student, objective);
+        if (existing.contains(key) || done.contains(key))
+            continue; // never over the teacher's own level
+        const double possible = points.value(score.assignment);
+        const QString level = levelForScore(score, possible, levels);
+        if (level.isEmpty())
+            continue;
+        QString evidence = QStringLiteral("From Canvas: ");
+        if (score.score >= 0 && possible > 0)
+            evidence += QStringLiteral("%1 of %2").arg(score.score).arg(possible);
+        else
+            evidence += score.grade;
+        QStringList fields{(score.graded.isValid() ? score.graded : QDate::currentDate()).toString(Qt::ISODate), student, objective,
+                           level, evidence};
+        for (auto &f : fields)
+            f = Classbook::csvField(f);
+        text += fields.join(',').toUtf8() + '\n';
+        done.insert(key);
+        ++written;
+    }
+    if (written > 0 && !writeFile(csvPath, QString::fromUtf8(text), error, true))
+        return -1;
+    return written;
+}
+
 // ---------------------------------------------------------------- Files
 
 QString slug(const QString &text) {
@@ -612,7 +755,8 @@ QString rosterToml(const ClassDraft &d) {
     QString out = QStringLiteral(
         "# PRIVATE: real students (FERPA). This file stays on this computer: don't\n"
         "# commit, upload or share it. AI agents never open it. Refreshed by\n"
-        "# `omamastery setup`; edit names freely, they're how mastery.csv knows students.\n");
+        "# `omamastery setup`, which keeps the names you use. Names are how mastery.csv\n"
+        "# knows students, so rename someone before recording levels, not after.\n");
     for (const auto &s : d.students) {
         out += QStringLiteral("\n[[student]]\nname = %1\n").arg(tomlString(s.name));
         if (!s.canvasId.isEmpty())
@@ -642,6 +786,8 @@ QString planToml(const ClassDraft &d) {
                    .arg(tomlString(o.id), tomlString(o.title), tomlString(o.idea));
         if (o.week.isValid())
             out += QStringLiteral("week = %1\n").arg(tomlString(o.week.toString(Qt::ISODate)));
+        if (!o.canvasAssignment.isEmpty())
+            out += QStringLiteral("canvas_assignment = %1\n").arg(tomlString(o.canvasAssignment));
     }
     return out;
 }

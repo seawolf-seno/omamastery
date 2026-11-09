@@ -1,6 +1,6 @@
 pkgname=omamastery
-pkgver=0.2.0
-pkgrel=2
+pkgver=0.2.1
+pkgrel=1
 pkgdesc='Mastery gradebook and planning hub for teachers, shaped with their AI agent'
 arch=('x86_64' 'aarch64')
 license=('MIT')

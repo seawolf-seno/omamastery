@@ -9,6 +9,8 @@ namespace Samples {
 bool init(const QString &root, bool withSampleClasses, QString *report, QString *error);
 
 QString scheduleToml();
+// [score_levels]: Canvas score → starting mastery level cutoffs.
+QString scoreLevelsToml();
 QString agentsGuide();
 // The rules for real (non-sample) classes, and adding them to an existing
 // AGENTS.md that predates them. Never removes anything the teacher wrote.

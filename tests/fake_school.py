@@ -54,15 +54,26 @@ ASSIGNMENT_GROUPS = {
     "101": [{"id": 1, "name": "Non-Mastery Assignments", "position": 1,
              "assignments": [{"id": 21, "name": "Syllabus quiz", "due_at": "2026-08-28T06:59:00Z"}]}],
     "102": [{"id": 2, "name": "Mastery Checks", "position": 1,
-             "assignments": [{"id": 31, "name": "Drivetrain build", "position": 1, "due_at": "2026-09-17T06:59:00Z"},
-                             {"id": 32, "name": "Line follower", "position": 2, "due_at": "2026-10-09T06:59:00Z"},
-                             {"id": 34, "name": "Final robot", "position": 4, "due_at": None}]},
+             "assignments": [{"id": 31, "name": "Drivetrain build", "position": 1, "points_possible": 10, "due_at": "2026-09-17T06:59:00Z"},
+                             {"id": 32, "name": "Line follower", "position": 2, "points_possible": 10, "due_at": "2026-10-09T06:59:00Z"},
+                             {"id": 34, "name": "Final robot", "position": 4, "points_possible": 10, "due_at": None}]},
             {"id": 3, "name": "Labs", "position": 2,
-             "assignments": [{"id": 33, "name": "Gear ratios quiz", "quiz_id": 77, "position": 1,
+             "assignments": [{"id": 33, "name": "Gear ratios quiz", "quiz_id": 77, "position": 1, "points_possible": 4,
                               "due_at": "2026-09-10T06:59:00Z"}]},
             {"id": 4, "name": "non-mastery assignments", "position": 3,
              "assignments": [{"id": 35, "name": "Homework 1", "due_at": "2026-09-03T06:59:00Z"}]}],
 }
+# Graded work (made up). Sam Arden: 10 and 9.5 of 10; Sam Berry: 7 of 10 and a
+# level word; Lio: a 0 for missing work, and one turned in but not graded.
+SUBMISSIONS = {
+    "102": [{"user_id": 4, "assignment_id": 31, "score": 10, "grade": "10", "graded_at": "2026-09-18T20:00:00Z"},
+            {"user_id": 4, "assignment_id": 32, "score": 9.5, "grade": "9.5", "graded_at": "2026-10-10T20:00:00Z"},
+            {"user_id": 5, "assignment_id": 31, "score": 7, "grade": "7", "graded_at": "2026-09-18T20:00:00Z"},
+            {"user_id": 5, "assignment_id": 33, "score": 3, "grade": "Developing", "graded_at": "2026-09-11T20:00:00Z"},
+            {"user_id": 6, "assignment_id": 31, "score": 0, "grade": "0", "graded_at": "2026-09-19T20:00:00Z"},
+            {"user_id": 6, "assignment_id": 32, "score": None, "grade": None, "graded_at": None}],
+}
+
 SECTIONS = [
     {"id": 5001, "course_title": "AP Computer Science Principles", "section_identifier": "1A"},
     {"id": 5002, "course_title": "Robotics", "section_identifier": "3B"},
@@ -123,6 +134,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, OUTCOMES[cid])
             if rest[2:] == ["modules"]:
                 return self.send(200, MODULES.get(cid, []))
+            if rest[2:] == ["students", "submissions"]:
+                assert q.get("student_ids[]") == ["all"]
+                return self.page(SUBMISSIONS.get(cid, []), q)
             if rest[2:] == ["assignment_groups"]:
                 assert q.get("include[]") == ["assignments"]
                 return self.send(200, ASSIGNMENT_GROUPS.get(cid, []))
