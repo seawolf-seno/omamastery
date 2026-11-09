@@ -8,6 +8,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+#include "documents.h"
 #include "samples.h"
 
 Backend::Backend(const QString &root, QObject *parent) : QObject(parent), m_book(root) {
@@ -268,7 +269,9 @@ QString Backend::agentPrompt(const QString &kind, const ClassInfo &info) {
         "Read ../AGENTS.md first and follow its rules. ").arg(info.name);
     // A real class: the agent works from the course plan only, never from
     // the roster, the mastery log or the teacher's notes about students.
-    const QString plans = QStringLiteral("the long-range plan (long-range-plan.*), syllabus.md and canvas-plan.md if they're here");
+    const QString plans = QStringLiteral(
+        "the long-range plan (long-range-plan.*), the syllabus (syllabus*) and canvas-plan.md if they're here; "
+        "for a .docx, read its .md copy");
     if (!info.sample) {
         const QString fence = QStringLiteral("This is a real class: never open roster.toml, mastery.csv or notes.md. ");
         if (kind == "space")
@@ -317,6 +320,8 @@ void Backend::askAgent(const QString &kind) {
         say(tr("Omarchy's agent launcher isn't installed, so there's no agent to open."));
         return;
     }
+    // Word plans get a Markdown copy first, so any agent can read them.
+    Documents::convertForAgents(info.dir);
     // Started in the class folder, so the agent sees this class's files first.
     if (!QProcess::startDetached(omarchy, {"agent", "prompt", agentPrompt(kind, info)}, info.dir))
         say(tr("Couldn't start your agent."));

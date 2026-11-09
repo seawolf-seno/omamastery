@@ -6,6 +6,7 @@
 
 #include "backend.h"
 #include "classbook.h"
+#include "documents.h"
 #include "connect/connect.h"
 #include "connect/importer.h"
 #include "samples.h"
@@ -292,6 +293,19 @@ private slots:
         QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 1);
         QCOMPARE(Classbook::loadMastery(dir.filePath("mastery.csv")).value(Classbook::masteryKey("Mara", "bits")), QString("Proficient"));
         QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 0); // never twice
+    }
+
+    void wordDocumentsGetMarkdownNames() {
+        QTemporaryDir dir;
+        write(dir.filePath("long-range-plan.docx"), "x");
+        write(dir.filePath("syllabus.docx"), "x");
+        write(dir.filePath("syllabus.md"), "# From Canvas\n");
+        QCOMPARE(QFileInfo(Documents::markdownNameFor(dir.filePath("long-range-plan.docx"))).fileName(), QString("long-range-plan.md"));
+        // syllabus.md is the Canvas syllabus, so the Word one gets its own name.
+        QCOMPARE(QFileInfo(Documents::markdownNameFor(dir.filePath("syllabus.docx"))).fileName(), QString("syllabus-document.md"));
+        // A copy OmaMastery made earlier is its own to replace.
+        write(dir.filePath("long-range-plan.md"), "<!-- Markdown copy of long-range-plan.docx, made by OmaMastery -->\n");
+        QCOMPARE(QFileInfo(Documents::markdownNameFor(dir.filePath("long-range-plan.docx"))).fileName(), QString("long-range-plan.md"));
     }
 
     void setupMakesShortFolderNames() {

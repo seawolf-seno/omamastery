@@ -8,6 +8,7 @@ HEADERS += \
     src/backend.h \
     src/classbook.h \
     src/cli.h \
+    src/documents.h \
     src/connect/connect.h \
     src/connect/http.h \
     src/connect/importer.h \
@@ -23,6 +24,7 @@ SOURCES += \
     src/backend.cpp \
     src/classbook.cpp \
     src/cli.cpp \
+    src/documents.cpp \
     src/connect/connect.cpp \
     src/connect/http.cpp \
     src/connect/importer.cpp \

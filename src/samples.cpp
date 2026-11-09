@@ -310,7 +310,9 @@ as you save, so the teacher sees your changes immediately.
   The latest row for a student and objective is their current level.
 - `<class>/notes.md`: the planning hub. Newest entry on top, under a dated
   `## ` heading.
-- `<class>/long-range-plan.*`: the teacher's long-range plan, if they added one.
+- `<class>/long-range-plan.*`, `<class>/syllabus*`: the teacher's long-range
+  plan and syllabus, if they added them. A `.docx` gets a Markdown copy
+  (`.md`, or `-document.md`) for you to read.
 - `<class>/syllabus.md`, `<class>/canvas-plan.md`: the course's Canvas syllabus
   and modules, read at setup. No student data.
 - `<class>/roster.toml`: a real class's students. Private; see below.
@@ -338,7 +340,7 @@ QString Samples::realClassRules() {
 
 Their course plans hold no student data, so you may help with them: read and
 edit `class.toml`, `plan.toml` and `ideas.toml`, and read `long-range-plan.*`,
-`syllabus.md`, `canvas-plan.md` and `schedule.toml`.
+`syllabus*`, `canvas-plan.md` and `schedule.toml`.
 
 Never open `roster.toml`, `mastery.csv` or `notes.md` in a real class: they
 hold real students' names and the teacher's notes about them. Never write a

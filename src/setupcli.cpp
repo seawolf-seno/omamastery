@@ -16,6 +16,7 @@
 
 #include "classbook.h"
 #include "connect/connect.h"
+#include "documents.h"
 #include "samples.h"
 
 namespace {
@@ -213,9 +214,12 @@ int SetupCli::run(const QStringList &arguments) {
 int SetupCli::draft() {
     Classbook book(qEnvironmentVariable("OMAMASTERY_HOME"));
     QStringList ids;
-    for (const auto &info : book.loadClasses())
-        if (!info.sample)
-            ids << info.id;
+    for (const auto &info : book.loadClasses()) {
+        if (info.sample)
+            continue;
+        ids << info.id;
+        Documents::convertForAgents(info.dir); // Word plans → Markdown copies for the agent
+    }
     if (ids.isEmpty()) {
         out() << "No real classes yet: run `omamastery setup` first.\n";
         return 1;

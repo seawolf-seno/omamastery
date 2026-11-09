@@ -577,7 +577,8 @@ QString draftPrompt(const QStringList &classIds) {
     return QStringLiteral(
                "I'm a teacher. You're in ~/Classes. Read AGENTS.md first and follow its rules. I just set up these "
                "classes from Canvas: %1. For each one, read the files in its folder that describe the course: "
-               "long-range-plan.* if there is one, syllabus.md, canvas-plan.md, plan.toml and ideas.toml. Never open "
+               "long-range-plan.* and syllabus* if there are any (for a .docx, its .md copy), canvas-plan.md, plan.toml "
+               "and ideas.toml. Never open "
                "roster.toml or mastery.csv: they hold real students. Then draft the course's core ideas in ideas.toml "
                "and clear learning objectives in plan.toml: each one a thing a student can do, tied to a core idea, "
                "in the week it's taught, skipping days off in schedule.toml. Keep existing objective ids. Do one class "
