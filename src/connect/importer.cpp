@@ -588,14 +588,23 @@ int seedLevels(const QString &classDir, const ClassDraft &draft, const ScoreLeve
         return 0;
     // Which objective each Canvas assignment is, from plan.toml as it is now
     // (the teacher may have renamed or re-dated objectives since setup).
+    // Plans written before objectives kept their assignment id (0.2.0) match
+    // by title instead: the title is the assignment's name.
+    QHash<QString, QString> assignmentByTitle;
+    for (const auto &o : draft.objectives)
+        if (!o.canvasAssignment.isEmpty())
+            assignmentByTitle.insert(o.title.simplified().toLower(), o.canvasAssignment);
     QHash<QString, QString> objectiveOf;
     try {
         const toml::table plan = toml::parse_file((classDir + "/plan.toml").toStdString());
         if (const auto *list = plan["objective"].as_array())
             for (const auto &item : *list)
                 if (const auto *row = item.as_table()) {
-                    const QString assignment = QString::fromStdString((*row)["canvas_assignment"].value_or(std::string()));
-                    if (!assignment.isEmpty())
+                    QString assignment = QString::fromStdString((*row)["canvas_assignment"].value_or(std::string()));
+                    if (assignment.isEmpty())
+                        assignment = assignmentByTitle.value(
+                            QString::fromStdString((*row)["title"].value_or(std::string())).simplified().toLower());
+                    if (!assignment.isEmpty() && !objectiveOf.contains(assignment))
                         objectiveOf.insert(assignment, QString::fromStdString((*row)["id"].value_or(std::string())));
                 }
     } catch (const toml::parse_error &) {

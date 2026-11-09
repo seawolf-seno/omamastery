@@ -274,6 +274,26 @@ private slots:
         QCOMPARE(custom.developing, 80.0);
     }
 
+    void startingLevelsFindPlansWithoutCanvasIds() {
+        // A plan from 0.2.0: assignment objectives, but no canvas_assignment lines.
+        QTemporaryDir dir;
+        write(dir.filePath("plan.toml"), "[[objective]]\nid = \"bits\"\ntitle = \"Bits and Binary\"\n\n"
+                                         "[[objective]]\nid = \"mine\"\ntitle = \"My own objective\"\n");
+        write(dir.filePath("roster.toml"), "[[student]]\nname = \"Mara\"\ncanvas_id = \"1\"\n");
+        write(dir.filePath("mastery.csv"), "date,student,objective,level,evidence\n");
+        Importer::ClassDraft draft;
+        draft.objectives = {{"bits-and-binary", "Bits and Binary", "", QDate(), "31", 10}};
+        Importer::Score score;
+        score.canvasUser = "1";
+        score.assignment = "31";
+        score.score = 9;
+        draft.scores = {score};
+        QString error;
+        QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 1);
+        QCOMPARE(Classbook::loadMastery(dir.filePath("mastery.csv")).value(Classbook::masteryKey("Mara", "bits")), QString("Proficient"));
+        QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 0); // never twice
+    }
+
     void setupMakesShortFolderNames() {
         QCOMPARE(Importer::slug("AP Computer Science Principles - Block 1A"), QString("ap-computer-science-principles-block-1a"));
         QCOMPARE(Importer::slug("  Español: Nivel II! "), QString("espa-ol-nivel-ii"));
