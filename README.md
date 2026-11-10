@@ -62,6 +62,17 @@ address and Blackbaud app go in `/etc/omamastery/connect.toml` (see
 `docs/connect.toml.example`). A link like
 `omamastery://setup?canvas=yourschool.instructure.com` fills in the address.
 
+## Cleaning up
+
+Right-click a class in the list (or use its ⋯) to archive or delete it:
+
+- **Archive** at the end of the year: the class leaves OmaMastery and
+  OmaClass, and its folder, every file in it, moves to
+  `~/Classes/archive/2026-27/`. `omamastery archive --all` archives the year.
+  `omamastery restore ~/Classes/archive/2026-27/<class>` brings one back.
+- **Delete** a class you don't need (a test class, a duplicate): its folder
+  moves to the Trash, where you can restore it until you empty it.
+
 ## Commands
 
 | Command | Does |
@@ -73,6 +84,9 @@ address and Blackbaud app go in `/etc/omamastery/connect.toml` (see
 | `omamastery init [--sample]` | Sets up `~/Classes`, optionally with sample classes |
 | `omamastery setup` | Brings in your classes from Canvas (and Blackbaud); `--dry-run`, `--blackbaud`, `--forget` |
 | `omamastery draft` | Opens your agent to draft objectives for your real classes |
+| `omamastery archive CLASS…` / `--all` | Moves classes to `archive/<school year>/`, every file kept |
+| `omamastery delete CLASS` | Moves a class's folder to the Trash |
+| `omamastery restore PATH` | Brings an archived class back |
 
 ## Keyboard
 

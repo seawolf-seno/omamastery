@@ -64,6 +64,89 @@ QVector<ClassInfo> Classbook::loadClasses() const {
     return classes;
 }
 
+namespace {
+
+// A class id is one folder name directly under the root, holding class.toml.
+bool classFolder(const QString &root, const QString &id, QString *path, QString *error) {
+    if (id.isEmpty() || id.contains('/') || id.contains('\\') || id == "." || id == ".." || id == "archive") {
+        *error = QStringLiteral("Not a class: %1").arg(id);
+        return false;
+    }
+    *path = root + "/" + id;
+    if (!QFileInfo::exists(*path + "/class.toml")) {
+        *error = QStringLiteral("No class called %1 in %2").arg(id, root);
+        return false;
+    }
+    return true;
+}
+
+} // namespace
+
+QString Classbook::schoolYear() const {
+    Schedule schedule;
+    QDate first;
+    if (schedule.load(schedulePath()))
+        first = schedule.firstDay();
+    if (!first.isValid()) {
+        // School years start in late summer.
+        const QDate today = QDate::currentDate();
+        first = QDate(today.month() >= 7 ? today.year() : today.year() - 1, 8, 1);
+    }
+    return QStringLiteral("%1-%2").arg(first.year()).arg((first.year() + 1) % 100, 2, 10, QChar('0'));
+}
+
+bool Classbook::archiveClass(const QString &id, QString *movedTo, QString *error) const {
+    QString path;
+    if (!classFolder(m_root, id, &path, error))
+        return false;
+    const QString year = m_root + "/archive/" + schoolYear();
+    if (!QDir().mkpath(year)) {
+        *error = QStringLiteral("Couldn't create %1").arg(year);
+        return false;
+    }
+    QString target = year + "/" + id;
+    for (int n = 2; QFileInfo::exists(target); ++n)
+        target = year + "/" + id + "-" + QString::number(n);
+    if (!QDir().rename(path, target)) {
+        *error = QStringLiteral("Couldn't move %1 to %2").arg(path, target);
+        return false;
+    }
+    if (movedTo)
+        *movedTo = target;
+    return true;
+}
+
+bool Classbook::deleteClass(const QString &id, QString *error) const {
+    QString path;
+    if (!classFolder(m_root, id, &path, error))
+        return false;
+    if (!QFile::moveToTrash(path)) {
+        *error = QStringLiteral("Couldn't move %1 to the Trash").arg(path);
+        return false;
+    }
+    return true;
+}
+
+bool Classbook::restoreClass(const QString &archivedPath, QString *error) const {
+    const QFileInfo info(archivedPath);
+    const QString archive = QDir(m_root + "/archive").canonicalPath();
+    if (!info.exists() || !QFileInfo::exists(archivedPath + "/class.toml") || archive.isEmpty() ||
+        !info.canonicalFilePath().startsWith(archive + "/")) {
+        *error = QStringLiteral("Not an archived class: %1").arg(archivedPath);
+        return false;
+    }
+    const QString target = m_root + "/" + info.fileName();
+    if (QFileInfo::exists(target)) {
+        *error = QStringLiteral("There's already a class called %1").arg(info.fileName());
+        return false;
+    }
+    if (!QDir().rename(info.canonicalFilePath(), target)) {
+        *error = QStringLiteral("Couldn't move %1 back").arg(archivedPath);
+        return false;
+    }
+    return true;
+}
+
 ClassInfo Classbook::loadClass(const QString &dir) {
     ClassInfo info;
     info.dir = dir;

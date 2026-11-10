@@ -19,6 +19,12 @@ ApplicationWindow {
 
     property bool helpVisible: false
     property bool setupVisible: startInSetup
+    // Archive or delete, waiting for the teacher to confirm.
+    property var classAction: ({ kind: "", id: "", name: "" })
+    function confirmClassAction(kind, id, name) {
+        win.classAction = { kind: kind, id: id, name: name }
+        classActionDialog.open()
+    }
     function openSetup() { setup.start(""); win.setupVisible = true }
     function whenText(c) {
         if (!c.day && !c.block) return qsTr("Day and block not set")
@@ -207,6 +213,42 @@ ApplicationWindow {
                     elide: Text.ElideRight
                     font.pixelSize: 13
                 }
+            }
+        }
+
+        // ---- Archive or delete a class: always confirmed first ----
+        Dialog {
+            id: classActionDialog
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 440)
+            modal: true
+            title: win.classAction.kind === "archive" ? qsTr("Archive %1?").arg(win.classAction.name)
+                                                      : qsTr("Delete %1?").arg(win.classAction.name)
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                textFormat: Text.PlainText
+                color: win.dim
+                text: win.classAction.kind === "archive"
+                      ? qsTr("It leaves OmaMastery and OmaClass. Every file stays, in ~/Classes/archive/%1/%2.").arg(backend.schoolYear).arg(win.classAction.id)
+                      : qsTr("Its folder, roster, plan and mastery levels move to the Trash. You can restore them from the Trash until you empty it.")
+            }
+            footer: DialogButtonBox {
+                Button {
+                    text: qsTr("Cancel")
+                    flat: true
+                    DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                }
+                Button {
+                    text: win.classAction.kind === "archive" ? qsTr("Archive") : qsTr("Delete")
+                    highlighted: true
+                    Material.foreground: theme.accentForeground
+                    DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                }
+            }
+            onAccepted: {
+                if (win.classAction.kind === "archive") backend.archiveClass(win.classAction.id)
+                else if (win.classAction.kind === "delete") backend.deleteClass(win.classAction.id)
             }
         }
 

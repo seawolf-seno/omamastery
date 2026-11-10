@@ -9,6 +9,7 @@
 #include "classbook.h"
 #include "samples.h"
 #include "school.h"
+#include "manageclasses.h"
 #include "setupcli.h"
 
 namespace {
@@ -38,7 +39,8 @@ QJsonObject classJson(const ClassInfo &info, const NowInfo &now, int index) {
 
 int usage() {
     err() << "Usage: omamastery [open [CLASS] | classes [--json] | now [--json] | init [--sample]\n"
-             "                   | setup [--canvas URL] [--blackbaud] [--yes] [--dry-run] [--forget] | draft]\n";
+             "                   | setup [--canvas URL] [--blackbaud] [--yes] [--dry-run] [--forget] | draft\n"
+             "                   | archive CLASS... | archive --all | delete CLASS [--yes] | restore PATH]\n";
     return 1;
 }
 
@@ -47,7 +49,7 @@ int usage() {
 bool Cli::handles(const QStringList &arguments) {
     if (arguments.size() < 2)
         return false;
-    static const QStringList commands{"classes", "now", "init", "setup", "draft", "help", "--help", "-h"};
+    static const QStringList commands{"classes", "now", "init", "setup", "draft", "archive", "delete", "restore", "help", "--help", "-h"};
     return commands.contains(arguments[1]);
 }
 
@@ -60,6 +62,12 @@ int Cli::run(const QStringList &arguments) {
         return SetupCli::run(arguments);
     if (command == "draft")
         return SetupCli::draft();
+    if (command == "archive")
+        return ManageClasses::archive(arguments);
+    if (command == "delete")
+        return ManageClasses::remove(arguments);
+    if (command == "restore")
+        return ManageClasses::restore(arguments);
     if (command == "init") {
         QString report;
         QString error;

@@ -168,6 +168,44 @@ private slots:
         QCOMPARE(QFile(csv).permissions() & (QFileDevice::ReadOther | QFileDevice::ReadGroup), QFileDevice::Permissions());
     }
 
+    void classesArchiveDeleteAndRestore() {
+        QTemporaryDir dir;
+        QString report, error, movedTo;
+        QVERIFY(Samples::init(dir.path(), true, &report, &error));
+        // A scratch Trash: never the teacher's own. (Qt uses the home Trash for
+        // files on the home disk, so the scratch folder plays home too.)
+        const QByteArray realHome = qgetenv("HOME");
+        qputenv("HOME", dir.path().toUtf8());
+        qputenv("XDG_DATA_HOME", dir.filePath("data").toUtf8());
+        QVERIFY(QDir().mkpath(dir.filePath("data")));
+        Classbook book(dir.path());
+        QCOMPARE(book.schoolYear(), QString("2026-27"));
+        const int before = book.loadClasses().size();
+
+        QVERIFY2(book.archiveClass("ap-csp", &movedTo, &error), qPrintable(error));
+        QCOMPARE(movedTo, dir.path() + "/archive/2026-27/ap-csp");
+        QVERIFY(QFileInfo::exists(movedTo + "/mastery.csv"));
+        QVERIFY(QFileInfo::exists(movedTo + "/long-range-plan.md"));
+        QCOMPARE(book.loadClasses().size(), before - 1); // gone from the list
+
+        QVERIFY2(book.restoreClass(movedTo, &error), qPrintable(error));
+        QVERIFY(QFileInfo::exists(dir.path() + "/ap-csp/class.toml"));
+        QCOMPARE(book.loadClasses().size(), before);
+
+        QVERIFY2(book.deleteClass("foundations", &error), qPrintable(error));
+        QVERIFY(!QFileInfo::exists(dir.path() + "/foundations"));
+        QVERIFY(QFileInfo::exists(dir.filePath("data/Trash/files/foundations/class.toml")));
+        QCOMPARE(book.loadClasses().size(), before - 1);
+
+        // Only class folders, by name.
+        for (const char *bad : {"", "..", "../x", "archive", "nope", "schedule.toml"})
+            QVERIFY2(!book.deleteClass(bad, &error) && !book.archiveClass(bad, &movedTo, &error), bad);
+        QVERIFY(QFileInfo::exists(dir.path() + "/schedule.toml"));
+        QVERIFY(!book.restoreClass(dir.path() + "/advanced-cs", &error)); // not in the archive
+        qunsetenv("XDG_DATA_HOME");
+        qputenv("HOME", realHome);
+    }
+
     void backendSeesAnAgentsEdit() {
         QTemporaryDir dir;
         QString report, error;

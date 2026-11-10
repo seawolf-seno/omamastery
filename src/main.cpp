@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     app.setApplicationName("omamastery");
-    app.setApplicationVersion("0.2.2");
+    app.setApplicationVersion("0.2.3");
 
     // Matches the window to omamastery.desktop, so the compositor (Wayland
     // app_id) and the launcher pick up the installed icon.

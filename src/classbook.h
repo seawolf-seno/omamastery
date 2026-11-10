@@ -61,6 +61,17 @@ public:
     bool exists() const;
 
     QVector<ClassInfo> loadClasses() const;
+
+    // Cleaning up. Both take a class's folder name and touch nothing else.
+    // Archive moves the folder, every file in it, to archive/<school year>/
+    // (e.g. archive/2026-27/ap-csp), so it leaves OmaMastery and OmaClass but
+    // nothing is lost. Delete moves it to the desktop Trash, where it can be
+    // restored until the Trash is emptied.
+    QString schoolYear() const; // "2026-27", from schedule.toml
+    bool archiveClass(const QString &id, QString *movedTo, QString *error) const;
+    bool deleteClass(const QString &id, QString *error) const;
+    // Puts an archived class back: archive/<year>/<id> → <id>.
+    bool restoreClass(const QString &archivedPath, QString *error) const;
     static ClassInfo loadClass(const QString &dir);
 
     // The levels, lowest first. Words, not numbers, and none of them a failure.

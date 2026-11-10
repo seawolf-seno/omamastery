@@ -31,6 +31,7 @@ class Backend : public QObject {
     Q_PROPERTY(QStringList levelNames READ levelNames CONSTANT)
     Q_PROPERTY(QString notes READ notes NOTIFY changed)
     Q_PROPERTY(QString thisWeek READ thisWeek NOTIFY changed)
+    Q_PROPERTY(QString schoolYear READ schoolYear NOTIFY changed)
 
 public:
     explicit Backend(const QString &root = {}, QObject *parent = nullptr);
@@ -51,6 +52,7 @@ public:
     QStringList levelNames() const { return Classbook::levels(); }
     QString notes() const { return m_notes; }
     QString thisWeek() const { return m_today.toString(Qt::ISODate); }
+    QString schoolYear() const { return m_book.schoolYear(); }
 
     Q_INVOKABLE void selectClass(int index);
     Q_INVOKABLE void selectClassId(const QString &id);
@@ -63,6 +65,10 @@ public:
     Q_INVOKABLE void openFolder();
     Q_INVOKABLE void setUpSample();
     Q_INVOKABLE void reload();
+    // Cleaning up: archive keeps every file in archive/<year>/; delete moves the
+    // folder to the Trash. Both by folder name; true when it worked.
+    Q_INVOKABLE bool archiveClass(const QString &id);
+    Q_INVOKABLE bool deleteClass(const QString &id);
 
     // For tests: pretend it is this moment instead of now.
     void setClock(const QDateTime &when);

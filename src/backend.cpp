@@ -345,6 +345,38 @@ void Backend::setUpSample() {
     say(tr("Set up sample classes in %1").arg(m_book.root()));
 }
 
+bool Backend::archiveClass(const QString &id) {
+    QString movedTo, error;
+    const QString name = [&] {
+        for (const auto &info : m_classes)
+            if (info.id == id)
+                return info.name;
+        return id;
+    }();
+    if (!m_book.archiveClass(id, &movedTo, &error)) {
+        say(error);
+        return false;
+    }
+    reload();
+    say(tr("Archived %1 in %2").arg(name, QDir::home().relativeFilePath(movedTo).prepend("~/")));
+    return true;
+}
+
+bool Backend::deleteClass(const QString &id) {
+    QString error;
+    QString name = id;
+    for (const auto &info : m_classes)
+        if (info.id == id)
+            name = info.name;
+    if (!m_book.deleteClass(id, &error)) {
+        say(error);
+        return false;
+    }
+    reload();
+    say(tr("Moved %1 to the Trash").arg(name));
+    return true;
+}
+
 void Backend::say(const QString &text) {
     m_status = text;
     emit statusChanged();

@@ -48,6 +48,36 @@ Rectangle {
 
                 HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: backend.selectClass(row.index) }
+                // Right-click, or the ⋯ button, for archive and delete.
+                TapHandler { acceptedButtons: Qt.RightButton; onTapped: classMenu.popup() }
+
+                Menu {
+                    id: classMenu
+                    MenuItem {
+                        text: qsTr("Archive class…")
+                        onTriggered: win.confirmClassAction("archive", row.modelData.id, row.modelData.name)
+                    }
+                    MenuItem {
+                        text: qsTr("Delete class…")
+                        onTriggered: win.confirmClassAction("delete", row.modelData.id, row.modelData.name)
+                    }
+                }
+
+                ToolButton {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.rightMargin: 2
+                    width: 28
+                    height: 28
+                    padding: 0
+                    visible: hover.hovered || classMenu.visible
+                    text: "⋯"
+                    font.pixelSize: 16
+                    onClicked: classMenu.popup()
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Archive or delete this class")
+                    ToolTip.delay: 400
+                }
 
                 Rectangle {
                     anchors.left: parent.left
@@ -91,7 +121,7 @@ Rectangle {
                     anchors.right: parent.right
                     anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: row.modelData.isNow || row.modelData.isNext
+                    visible: (row.modelData.isNow || row.modelData.isNext) && !hover.hovered && !classMenu.visible
                     width: badgeText.implicitWidth + 14
                     height: 22
                     radius: 11
