@@ -39,7 +39,9 @@ terminal, `omamastery setup`). Then:
 
 1. Make a Canvas access token and paste it in.
 2. Optionally sign in to Blackbaud for A/B days, blocks, rooms and bell times.
-3. Tick your classes.
+3. Tick your classes. Only this semester's copy of each course is ticked
+   (for schools with one Canvas course per semester); Teacher's Assistant
+   courses, sandboxes and finished terms are listed but not ticked.
 
 Each class gets its folder. Its assignments become a first `plan.toml`, one
 objective per assignment in the week it's due. Work in an assignment group

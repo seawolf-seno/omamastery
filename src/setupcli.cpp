@@ -59,6 +59,8 @@ QString describe(const Importer::ClassDraft &d) {
     if (!d.blackbaudSection.isEmpty())
         from << "Blackbaud";
     parts << from.join('+');
+    if (!d.note.isEmpty())
+        parts << d.note;
     return d.name + "  ·  " + parts.join("  ·  ");
 }
 

@@ -3,6 +3,8 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <QJsonArray>
+#include <QJsonObject>
 
 #include "backend.h"
 #include "classbook.h"
@@ -331,6 +333,31 @@ private slots:
         QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 1);
         QCOMPARE(Classbook::loadMastery(dir.filePath("mastery.csv")).value(Classbook::masteryKey("Mara", "bits")), QString("Proficient"));
         QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 0); // never twice
+    }
+
+    void setupTicksOnlyThisSemestersClasses() {
+        auto course = [](int id, const char *name, int students, const char *term, const char *end) {
+            return QJsonObject{{"id", id}, {"name", name}, {"total_students", students},
+                               {"term", QJsonObject{{"name", term}, {"end_at", end}}}};
+        };
+        const QJsonArray courses{
+            course(1, "Physics", 15, "2026/2027 - School - 1st Semester", "2026-12-19T07:59:00Z"),
+            course(2, "Physics", 15, "2026/2027 - School - 2nd Semester", "2027-05-22T06:59:00Z"),
+            course(3, "Teacher's Assistant", 1, "2026/2027 - School - 1st Semester", "2026-12-19T07:59:00Z"),
+            course(4, "Physics Sandbox", 0, "Default Term", ""),
+            course(5, "Chapel", 11, "2024/2025 - School - 2nd Semester", "2025-07-31T07:00:00Z")};
+        auto drafts = Importer::draftsFromCanvasCourses(courses, QDate(2026, 11, 9));
+        QCOMPARE(drafts.size(), 5);
+        QVERIFY(drafts[0].selected);
+        QVERIFY(!drafts[1].selected);
+        QCOMPARE(drafts[1].note, QString("2nd Semester"));
+        QVERIFY(!drafts[2].selected);
+        QVERIFY(!drafts[3].selected);
+        QVERIFY(!drafts[4].selected);
+        // In January the spring copy is the one under way.
+        drafts = Importer::draftsFromCanvasCourses(courses, QDate(2027, 1, 11));
+        QVERIFY(!drafts[0].selected);
+        QVERIFY(drafts[1].selected);
     }
 
     void groupsRollUpToTheLowestLevel() {

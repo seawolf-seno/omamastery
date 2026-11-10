@@ -399,7 +399,8 @@ PullResult list(const Settings &s, const QString &canvasToken, const QString &bl
         QString error;
         const QJsonArray courses = canvasClient(s, canvasToken).getAll(
             canvasUrl(s, "/courses", {{"enrollment_type", "teacher"}, {"enrollment_state", "active"},
-                                      {"include[]", "total_students"}, {"include[]", "sections"}, {"per_page", "100"}}),
+                                      {"include[]", "total_students"}, {"include[]", "sections"}, {"include[]", "term"},
+                                      {"per_page", "100"}}),
             &error);
         if (!error.isEmpty()) {
             r.error = error.contains(" 401") ? QStringLiteral("Canvas didn't accept that token. Make a new one and try again.") : error;

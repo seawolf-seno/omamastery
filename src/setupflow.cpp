@@ -63,6 +63,8 @@ QVariantList SetupFlow::classes() const {
             parts << tr("Room %1").arg(d.room);
         if (d.studentCount >= 0)
             parts << tr("%n students", nullptr, d.studentCount);
+        if (!d.note.isEmpty())
+            parts << d.note;
         list.append(QVariantMap{{"name", d.name}, {"detail", parts.join(" · ")}, {"selected", d.selected}});
     }
     return list;

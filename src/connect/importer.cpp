@@ -126,7 +126,7 @@ void guessDayBlock(const QString &text, QString *day, int *block) {
         *day = (m.captured(1) + m.captured(2)).toUpper();
 }
 
-QVector<ClassDraft> draftsFromCanvasCourses(const QJsonArray &courses) {
+QVector<ClassDraft> draftsFromCanvasCourses(const QJsonArray &courses, const QDate &today) {
     QVector<ClassDraft> drafts;
     for (const auto &value : courses) {
         const QJsonObject c = value.toObject();
@@ -151,7 +151,43 @@ QVector<ClassDraft> draftsFromCanvasCourses(const QJsonArray &courses) {
             d.studentCount = c.value("total_students").toInt();
             d.selected = d.studentCount > 0;
         }
+        const QJsonObject term = c.value("term").toObject();
+        d.term = text(term, {"name"});
+        d.termEnd = localDate(text(term, {"end_at"}));
+        if (d.selected && d.termEnd.isValid() && d.termEnd < today) {
+            d.selected = false;
+            d.note = QStringLiteral("term over");
+        }
+        // A TA period isn't a class to grade for mastery.
+        static const QRegularExpression assistant(R"(\bteacher'?s?\s+assistant\b|\bteaching\s+assistant\b)",
+                                                  QRegularExpression::CaseInsensitiveOption);
+        if (assistant.match(d.name).hasMatch()) {
+            d.selected = false;
+            d.note = QStringLiteral("Teacher's Assistant");
+        }
         drafts.append(d);
+    }
+    // One course per semester: of the same-named ticked courses, keep the one
+    // whose term ends first (the one under way) and untick the later ones.
+    QHash<QString, int> current;
+    for (int i = 0; i < drafts.size(); ++i) {
+        const auto &d = drafts[i];
+        if (!d.selected || !d.termEnd.isValid())
+            continue;
+        const QString key = d.name.simplified().toLower();
+        const auto it = current.find(key);
+        if (it == current.end() || d.termEnd < drafts[*it].termEnd)
+            current.insert(key, i);
+    }
+    for (int i = 0; i < drafts.size(); ++i) {
+        auto &d = drafts[i];
+        const auto it = current.constFind(d.name.simplified().toLower());
+        if (!d.selected || !d.termEnd.isValid() || it == current.constEnd() || *it == i || d.termEnd <= drafts[*it].termEnd)
+            continue;
+        d.selected = false;
+        static const QRegularExpression semester(R"(\b(\d\w*\s+(?:semester|trimester|quarter|term))\b)", QRegularExpression::CaseInsensitiveOption);
+        const auto m = semester.match(d.term);
+        d.note = m.hasMatch() ? m.captured(1) : QStringLiteral("later term");
     }
     return drafts;
 }
