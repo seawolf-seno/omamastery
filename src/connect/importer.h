@@ -85,7 +85,7 @@ struct MeetingBlock { // one block's bell times, read from Blackbaud meetings
 // ---- Canvas ----
 // GET /api/v1/courses?enrollment_type=teacher → one draft per course.
 // Listed but not ticked: courses with no students, Teacher's Assistant
-// courses, and a later term's copy of a course (a school that makes one
+// and Advisory courses, and a later term's copy of a course (a school that makes one
 // Canvas course per semester: only the semester under way is ticked).
 QVector<ClassDraft> draftsFromCanvasCourses(const QJsonArray &courses, const QDate &today = QDate::currentDate());
 // GET /api/v1/courses/:id/users?enrollment_type[]=student

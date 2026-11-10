@@ -345,9 +345,12 @@ private slots:
             course(2, "Physics", 15, "2026/2027 - School - 2nd Semester", "2027-05-22T06:59:00Z"),
             course(3, "Teacher's Assistant", 1, "2026/2027 - School - 1st Semester", "2026-12-19T07:59:00Z"),
             course(4, "Physics Sandbox", 0, "Default Term", ""),
-            course(5, "Chapel", 11, "2024/2025 - School - 2nd Semester", "2025-07-31T07:00:00Z")};
+            course(5, "Chapel", 11, "2024/2025 - School - 2nd Semester", "2025-07-31T07:00:00Z"),
+            course(6, "Advisory", 20, "2026/2027 - School - 1st Semester", "2026-12-19T07:59:00Z")};
         auto drafts = Importer::draftsFromCanvasCourses(courses, QDate(2026, 11, 9));
-        QCOMPARE(drafts.size(), 5);
+        QCOMPARE(drafts.size(), 6);
+        QVERIFY(!drafts[5].selected);
+        QCOMPARE(drafts[5].note, QString("Advisory"));
         QVERIFY(drafts[0].selected);
         QVERIFY(!drafts[1].selected);
         QCOMPARE(drafts[1].note, QString("2nd Semester"));

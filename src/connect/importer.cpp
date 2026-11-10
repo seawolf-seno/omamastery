@@ -158,12 +158,16 @@ QVector<ClassDraft> draftsFromCanvasCourses(const QJsonArray &courses, const QDa
             d.selected = false;
             d.note = QStringLiteral("term over");
         }
-        // A TA period isn't a class to grade for mastery.
+        // A TA period or advisory isn't a class to grade for mastery.
         static const QRegularExpression assistant(R"(\bteacher'?s?\s+assistant\b|\bteaching\s+assistant\b)",
                                                   QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression advisory(R"(\badvisory\b)", QRegularExpression::CaseInsensitiveOption);
         if (assistant.match(d.name).hasMatch()) {
             d.selected = false;
             d.note = QStringLiteral("Teacher's Assistant");
+        } else if (advisory.match(d.name).hasMatch()) {
+            d.selected = false;
+            d.note = QStringLiteral("Advisory");
         }
         drafts.append(d);
     }
