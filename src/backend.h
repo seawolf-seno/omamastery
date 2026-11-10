@@ -28,6 +28,8 @@ class Backend : public QObject {
     Q_PROPERTY(QVariantMap levels READ levels NOTIFY changed)
     // "student|objective" → where the current level came from, and when.
     Q_PROPERTY(QVariantMap levelNotes READ levelNotes NOTIFY changed)
+    // "student|group" → the group's level: the lowest of its taught objectives.
+    Q_PROPERTY(QVariantMap groupLevels READ groupLevels NOTIFY changed)
     Q_PROPERTY(QStringList levelNames READ levelNames CONSTANT)
     Q_PROPERTY(QString notes READ notes NOTIFY changed)
     Q_PROPERTY(QString thisWeek READ thisWeek NOTIFY changed)
@@ -49,6 +51,7 @@ public:
     QVariantList objectives() const;
     QVariantMap levels() const;
     QVariantMap levelNotes() const;
+    QVariantMap groupLevels() const;
     QStringList levelNames() const { return Classbook::levels(); }
     QString notes() const { return m_notes; }
     QString thisWeek() const { return m_today.toString(Qt::ISODate); }
@@ -61,6 +64,9 @@ public:
     Q_INVOKABLE void cycleLevel(const QString &student, const QString &objective, int step);
     // Sets every student with no level yet on this objective; returns how many.
     Q_INVOKABLE int fillObjective(const QString &objective, const QString &level);
+    // One student's page: their groups and objectives taught so far, and what
+    // to work on next. Worked out here from the levels; nothing leaves the laptop.
+    Q_INVOKABLE QVariantMap studentReport(const QString &student) const;
     Q_INVOKABLE void askAgent(const QString &kind);
     Q_INVOKABLE void openFolder();
     Q_INVOKABLE void setUpSample();

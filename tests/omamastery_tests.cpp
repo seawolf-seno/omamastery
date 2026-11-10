@@ -321,7 +321,7 @@ private slots:
         write(dir.filePath("roster.toml"), "[[student]]\nname = \"Mara\"\ncanvas_id = \"1\"\n");
         write(dir.filePath("mastery.csv"), "date,student,objective,level,evidence\n");
         Importer::ClassDraft draft;
-        draft.objectives = {{"bits-and-binary", "Bits and Binary", "", QDate(), "31", 10}};
+        draft.objectives = {{"bits-and-binary", "Bits and Binary", "", QDate(), "31", 10, ""}};
         Importer::Score score;
         score.canvasUser = "1";
         score.assignment = "31";
@@ -331,6 +331,69 @@ private slots:
         QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 1);
         QCOMPARE(Classbook::loadMastery(dir.filePath("mastery.csv")).value(Classbook::masteryKey("Mara", "bits")), QString("Proficient"));
         QCOMPARE(Importer::seedLevels(dir.path(), draft, {}, &error), 0); // never twice
+    }
+
+    void groupsRollUpToTheLowestLevel() {
+        QCOMPARE(Classbook::rollUp({"Proficient", "Developing", "Extending"}), QString("Developing"));
+        QCOMPARE(Classbook::rollUp({"Proficient", "", "Extending"}), QString("Proficient")); // unset ones left out
+        QCOMPARE(Classbook::rollUp({"", ""}), QString());
+    }
+
+    void setupAddsCanvasGroupsToExistingPlans() {
+        QTemporaryDir dir;
+        const QString plan = "# my notes stay\n\n[[objective]]\nid = \"bits\"\ntitle = \"Bits and Binary\"\nidea = \"\"\n\n"
+                             "[[objective]]\nid = \"net\"\ntitle = \"Renamed by me\"\ncanvas_assignment = \"32\"\n\n"
+                             "[[objective]]\nid = \"mine\"\ntitle = \"My own objective\"\n";
+        write(dir.filePath("plan.toml"), plan.toUtf8());
+        Importer::ClassDraft draft;
+        Importer::DraftObjective a{"bits-and-binary", "Bits and Binary", "", QDate(), "31", 10, "Digital Information"};
+        Importer::DraftObjective b{"networks", "Networks", "", QDate(), "32", 10, "The Internet"};
+        draft.objectives = {a, b};
+        QString error;
+        QCOMPARE(Importer::addGroups(dir.path(), draft, &error), 2);
+        const ClassInfo info = Classbook::loadClass(dir.path());
+        QCOMPARE(info.objectives.size(), 3);
+        QCOMPARE(info.objectives[0].group, QString("Digital Information"));
+        QCOMPARE(info.objectives[1].group, QString("The Internet"));
+        QCOMPARE(info.objectives[2].group, QString());
+        QFile file(dir.filePath("plan.toml"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QVERIFY(file.readAll().startsWith("# my notes stay"));
+        QCOMPARE(Importer::addGroups(dir.path(), draft, &error), 0); // never twice
+    }
+
+    void studentPageSuggestsTheLowestOldestFirst() {
+        QTemporaryDir dir;
+        QString report, error;
+        QVERIFY(Samples::init(dir.path(), false, &report, &error));
+        QDir().mkpath(dir.filePath("demo"));
+        write(dir.filePath("demo/class.toml"), "name = \"Demo\"\n");
+        write(dir.filePath("demo/roster.toml"), "[[student]]\nname = \"Mara\"\n");
+        write(dir.filePath("demo/plan.toml"),
+              "[[objective]]\nid = \"a\"\ntitle = \"A\"\ngroup = \"Kinematics\"\nweek = \"2026-09-07\"\n"
+              "[[objective]]\nid = \"b\"\ntitle = \"B\"\ngroup = \"Kinematics\"\nweek = \"2026-09-14\"\n"
+              "[[objective]]\nid = \"c\"\ntitle = \"C\"\ngroup = \"Forces\"\nweek = \"2026-09-21\"\n"
+              "[[objective]]\nid = \"d\"\ntitle = \"D\"\ngroup = \"Forces\"\nweek = \"2026-09-28\"\n"
+              "[[objective]]\nid = \"e\"\ntitle = \"E\"\ngroup = \"Forces\"\nweek = \"2026-12-07\"\n");
+        write(dir.filePath("demo/mastery.csv"), "date,student,objective,level,evidence\n"
+                                                "2026-09-10,Mara,a,Proficient,\n2026-09-20,Mara,b,Developing,\n"
+                                                "2026-09-25,Mara,c,Developing,\n");
+        Backend backend(dir.path());
+        backend.setClock(QDateTime(QDate(2026, 11, 9), QTime(8, 30)));
+        backend.reload();
+        backend.selectClassId("demo");
+        QCOMPARE(backend.groupLevels().value("Mara|Kinematics").toString(), QString("Developing"));
+        QCOMPARE(backend.groupLevels().value("Mara|Forces").toString(), QString("Developing"));
+        const QVariantMap page = backend.studentReport("Mara");
+        QCOMPARE(page.value("taught").toInt(), 4);
+        QCOMPARE(page.value("assessed").toInt(), 3);
+        const QVariantList focus = page.value("focus").toList();
+        QCOMPARE(focus.size(), 2);
+        QCOMPARE(focus[0].toMap().value("id").toString(), QString("b")); // same level: the older one first
+        QCOMPARE(focus[0].toMap().value("target").toString(), QString("Proficient"));
+        QCOMPARE(page.value("unassessed").toList().first().toMap().value("id").toString(), QString("d"));
+        QCOMPARE(page.value("comingUp").toList().first().toMap().value("id").toString(), QString("e"));
+        QCOMPARE(page.value("groups").toList().size(), 2);
     }
 
     void wordDocumentsGetMarkdownNames() {

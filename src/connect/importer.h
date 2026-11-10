@@ -31,6 +31,7 @@ struct DraftObjective {
     QDate week; // Monday, or invalid when not yet scheduled
     QString canvasAssignment; // the Canvas assignment it came from, if any
     double points = 0;        // that assignment's points possible
+    QString group;            // its Canvas assignment group (a unit or skill)
 };
 
 // One student's graded Canvas submission.
@@ -100,6 +101,10 @@ QString levelForScore(const Score &score, double points, const ScoreLevels &leve
 // Writes a starting level into mastery.csv for every graded assignment
 // objective whose cell is still empty. Never changes a level already there.
 // Returns how many it wrote, or -1 on error.
+// Adds `group = "..."` to objectives in plan.toml that don't have one yet,
+// matched to the draft by Canvas assignment id or by title. Leaves everything
+// else in the file as it is. Returns how many it added, or -1 on error.
+int addGroups(const QString &classDir, const ClassDraft &draft, QString *error);
 int seedLevels(const QString &classDir, const ClassDraft &draft, const ScoreLevels &levels, QString *error);
 
 // GET /api/v1/courses/:id/outcome_group_links?outcome_style=full

@@ -23,6 +23,7 @@ struct Objective {
     QString title;
     QString idea;
     QDate week; // the Monday of the week it is taught
+    QString group; // its Canvas assignment group (a unit or skill), if any
 };
 
 struct ClassInfo {
@@ -76,6 +77,10 @@ public:
 
     // The levels, lowest first. Words, not numbers, and none of them a failure.
     static const QStringList &levels();
+    // One level for a group of objectives: the lowest one set, so a group is
+    // Proficient only when every assessed objective in it is. Unset ones are
+    // left out; "" when none is set.
+    static QString rollUp(const QStringList &levels);
 
     // mastery.csv is an append-only log: date,student,objective,level,evidence.
     // The latest row for a student and objective is their current level.

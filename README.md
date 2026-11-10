@@ -45,7 +45,9 @@ Each class gets its folder. Its assignments become a first `plan.toml`, one
 objective per assignment in the week it's due. Work in an assignment group
 named "Non-Mastery Assignments" is left out. Graded work becomes a starting
 level (out of 10: 10 Extending, 9 Proficient, 8 Developing, 7 Beginning, less
-Not yet; change the cutoffs under `[score_levels]` in `schedule.toml`). Setup
+Not yet; change the cutoffs under `[score_levels]` in `schedule.toml`). Each objective keeps its Canvas
+assignment group (`group = "Kinematics"`), and setup adds it to plans made
+before groups were kept. Setup
 only fills empty cells, so a level you set is never changed. A course with none falls back to
 its Canvas Outcomes, then its modules. The syllabus and modules are saved for
 planning. Drop in your long-range plan and press "Draft objectives", and
@@ -88,6 +90,20 @@ Right-click a class in the list (or use its ⋯) to archive or delete it:
 | `omamastery delete CLASS` | Moves a class's folder to the Trash |
 | `omamastery restore PATH` | Brings an archived class back |
 
+## The Mastery grid
+
+Objectives are grouped as in Canvas. Each group shows one level per
+student: the lowest of its objectives that have a level, so a group reads
+Proficient only when every assessed objective in it is. Click a group to open
+its objectives and set levels; click again to close it. A plan without groups
+shows every objective.
+
+Click a student's name for their own page: what to work on next (their
+lowest levels, oldest first, each with the next level to aim for), objectives
+with no level yet, what's coming up, and every group with its objectives.
+Levels can be changed there too. It's worked out on your computer; no agent
+sees it.
+
 ## Keyboard
 
 | Key | Does |
@@ -100,7 +116,9 @@ Right-click a class in the list (or use its ⋯) to archive or delete it:
 | Click / right-click | Raise or lower a level |
 | Arrows | Move between cells, once one is selected |
 | `N` `B` `D` `P` `E` | Set Not yet, Beginning, Developing, Proficient, Extending, then move down |
-| Click a heading | Fill that objective's empty cells with one level |
+| Click a group | Show or hide its objectives |
+| Click an objective's heading | Fill its empty cells with one level |
+| Click a name, or `Enter` | That student's progress and next steps (`Esc` goes back) |
 | Hover a cell | Where its level came from, and when |
 | `?` | Help |
 | `Q` | Quit |

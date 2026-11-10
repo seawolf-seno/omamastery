@@ -232,7 +232,8 @@ void objectivesFromAssignmentGroups(const QJsonArray &groups, ClassDraft *draft)
             QDate when = localDate(text(a, {"due_at"}));
             if (!when.isValid())
                 when = localDate(text(a, {"unlock_at"}));
-            rows.append({{QString(), name, QString(), monday(when), text(a, {"id"}), a.value("points_possible").toDouble()},
+            rows.append({{QString(), name, QString(), monday(when), text(a, {"id"}), a.value("points_possible").toDouble(),
+                          text(group, {"name"}).simplified()},
                          groupPosition, a.value("position").toInt()});
         }
     }
@@ -270,7 +271,7 @@ void objectivesFromOutcomes(const QJsonArray &links, ClassDraft *draft) {
             shown = !statement.isEmpty() && statement.size() <= 160 ? statement : title;
         if (shown.isEmpty())
             continue;
-        draft->objectives.append({uniqueId(slug(title.isEmpty() ? shown : title), &taken), shown, group, QDate(), QString(), 0});
+        draft->objectives.append({uniqueId(slug(title.isEmpty() ? shown : title), &taken), shown, group, QDate(), QString(), 0, QString()});
         if (!group.isEmpty() && !draft->ideas.contains(group))
             draft->ideas.append(group);
     }
@@ -320,7 +321,7 @@ void objectivesFromModules(const QJsonArray &modules, const QJsonArray &assignme
         md += QStringLiteral("\n## %1%2\n\n").arg(name, week.isValid() ? QStringLiteral(" (week of %1)").arg(week.toString(Qt::ISODate)) : QString());
         md += lines.isEmpty() ? QStringLiteral("(no items)\n") : lines.join('\n') + '\n';
         if (addObjectives && !isHousekeeping(name))
-            draft->objectives.append({uniqueId(slug(name), &taken), name, QString(), week, QString(), 0});
+            draft->objectives.append({uniqueId(slug(name), &taken), name, QString(), week, QString(), 0, QString()});
     }
     draft->canvasPlan = modules.isEmpty() ? QString() : md;
     if (addObjectives && !draft->objectives.isEmpty())
@@ -583,6 +584,54 @@ QString levelForScore(const Score &score, double points, const ScoreLevels &leve
     return QStringLiteral("Not yet");
 }
 
+int addGroups(const QString &classDir, const ClassDraft &draft, QString *error) {
+    QHash<QString, QString> byAssignment, byTitle;
+    for (const auto &o : draft.objectives) {
+        if (o.group.isEmpty())
+            continue;
+        if (!o.canvasAssignment.isEmpty())
+            byAssignment.insert(o.canvasAssignment, o.group);
+        byTitle.insert(o.title.simplified().toLower(), o.group);
+    }
+    const QString path = classDir + "/plan.toml";
+    const QString text = readFile(path);
+    if (byTitle.isEmpty() || text.isEmpty())
+        return 0;
+    try {
+        (void)toml::parse(text.toStdString()); // never rewrite a file we can't read
+    } catch (const toml::parse_error &) {
+        return 0;
+    }
+    // Each [[objective]] block, up to the next table header.
+    static const QRegularExpression header(R"(^\[\[?[^\n]*$)", QRegularExpression::MultilineOption);
+    static const QRegularExpression titleLine(R"re(^title\s*=\s*"((?:[^"\\]|\\.)*)"[ \t]*$)re", QRegularExpression::MultilineOption);
+    static const QRegularExpression assignmentLine(R"re(^canvas_assignment\s*=\s*"([^"]*)")re", QRegularExpression::MultilineOption);
+    static const QRegularExpression groupLine(R"(^group\s*=)", QRegularExpression::MultilineOption);
+    QVector<int> starts;
+    for (auto it = header.globalMatch(text); it.hasNext();)
+        starts << it.next().capturedStart();
+    starts << text.size();
+    QString out = text.left(starts.value(0));
+    int added = 0;
+    for (int i = 0; i + 1 < starts.size(); ++i) {
+        QString block = text.mid(starts[i], starts[i + 1] - starts[i]);
+        if (block.startsWith("[[objective]]") && !groupLine.match(block).hasMatch()) {
+            const auto title = titleLine.match(block);
+            QString group = byAssignment.value(assignmentLine.match(block).captured(1));
+            if (group.isEmpty() && title.hasMatch())
+                group = byTitle.value(title.captured(1).replace("\\\"", "\"").simplified().toLower());
+            if (!group.isEmpty() && title.hasMatch()) {
+                block.insert(title.capturedEnd(), "\ngroup = " + tomlString(group));
+                ++added;
+            }
+        }
+        out += block;
+    }
+    if (added > 0 && !writeFile(path, out, error))
+        return -1;
+    return added;
+}
+
 int seedLevels(const QString &classDir, const ClassDraft &draft, const ScoreLevels &levels, QString *error) {
     if (draft.scores.isEmpty())
         return 0;
@@ -793,6 +842,8 @@ QString planToml(const ClassDraft &d) {
     for (const auto &o : d.objectives) {
         out += QStringLiteral("\n[[objective]]\nid = %1\ntitle = %2\nidea = %3\n")
                    .arg(tomlString(o.id), tomlString(o.title), tomlString(o.idea));
+        if (!o.group.isEmpty())
+            out += QStringLiteral("group = %1\n").arg(tomlString(o.group));
         if (o.week.isValid())
             out += QStringLiteral("week = %1\n").arg(tomlString(o.week.toString(Qt::ISODate)));
         if (!o.canvasAssignment.isEmpty())

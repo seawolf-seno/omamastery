@@ -161,6 +161,7 @@ QVariantList Backend::objectives() const {
             {"id", objective.id},
             {"title", objective.title},
             {"idea", objective.idea},
+            {"group", objective.group},
             {"joint", joints.value(objective.idea)},
             {"week", objective.week.isValid() ? objective.week.toString(Qt::ISODate) : QString()},
             {"weekLabel", objective.week.isValid() ? objective.week.toString("MMM d") : QStringLiteral("Not scheduled")},
@@ -204,6 +205,117 @@ int Backend::fillObjective(const QString &objective, const QString &level) {
     say(tr("Set %n empty cells to %1", nullptr, int(rows.size())).arg(tr(level.toUtf8().constData())));
     emit changed();
     return int(rows.size());
+}
+
+QVariantMap Backend::groupLevels() const {
+    QVariantMap map;
+    if (m_current < 0)
+        return map;
+    const QDate week = Classbook::weekStart(m_today);
+    const auto &info = m_classes[m_current];
+    for (const auto &student : info.students) {
+        QHash<QString, QStringList> byGroup;
+        for (const auto &o : info.objectives)
+            if (!o.group.isEmpty() && o.week.isValid() && o.week <= week)
+                byGroup[o.group] << m_mastery.value(Classbook::masteryKey(student, o.id));
+        for (auto it = byGroup.begin(); it != byGroup.end(); ++it) {
+            const QString level = Classbook::rollUp(it.value());
+            if (!level.isEmpty())
+                map.insert(student + "|" + it.key(), level);
+        }
+    }
+    return map;
+}
+
+QVariantMap Backend::studentReport(const QString &student) const {
+    QVariantMap report;
+    if (m_current < 0)
+        return report;
+    const auto &info = m_classes[m_current];
+    const QDate week = Classbook::weekStart(m_today);
+    const QStringList &names = Classbook::levels();
+    const int proficient = names.indexOf("Proficient");
+
+    struct Taught {
+        const Objective *objective;
+        QString level;
+    };
+    QVector<Taught> taught;
+    QStringList groupOrder;
+    QHash<QString, QVariantList> groupRows;
+    QHash<QString, QStringList> groupLevels;
+    QVariantList comingUp;
+    for (const auto &o : info.objectives) {
+        const bool isTaught = o.week.isValid() && o.week <= week;
+        if (!isTaught) {
+            if (comingUp.size() < 3 && o.week.isValid())
+                comingUp.append(QVariantMap{{"id", o.id}, {"title", o.title}, {"group", o.group},
+                                            {"weekLabel", o.week.toString("MMM d")}});
+            continue;
+        }
+        const QString level = m_mastery.value(Classbook::masteryKey(student, o.id));
+        taught.append({&o, level});
+        if (!groupOrder.contains(o.group))
+            groupOrder << o.group;
+        groupRows[o.group].append(QVariantMap{
+            {"id", o.id}, {"title", o.title}, {"level", level},
+            {"note", m_levelNotes.value(Classbook::masteryKey(student, o.id))},
+            {"weekLabel", o.week.toString("MMM d")}});
+        groupLevels[o.group] << level;
+    }
+    // Ungrouped objectives go last, under "Other objectives".
+    if (groupOrder.removeAll(QString()) > 0)
+        groupOrder << QString();
+    QVariantList groups;
+    for (const auto &g : groupOrder)
+        groups.append(QVariantMap{{"name", g}, {"level", Classbook::rollUp(groupLevels.value(g))},
+                                  {"objectives", groupRows.value(g)}});
+
+    // Next steps: the lowest levels first, then the earliest taught, so a
+    // student shores up old ground before new.
+    QVector<Taught> below;
+    QVariantList unassessed;
+    int assessed = 0;
+    int atProficient = 0;
+    for (const auto &t : taught) {
+        const int i = names.indexOf(t.level);
+        if (i < 0) {
+            unassessed.append(QVariantMap{{"id", t.objective->id}, {"title", t.objective->title}, {"group", t.objective->group}});
+            continue;
+        }
+        ++assessed;
+        if (i >= proficient)
+            ++atProficient;
+        else
+            below.append(t);
+    }
+    std::stable_sort(below.begin(), below.end(),
+                     [&](const Taught &a, const Taught &b) { return names.indexOf(a.level) < names.indexOf(b.level); });
+    QVariantList focus;
+    for (const auto &t : below) {
+        if (focus.size() == 3)
+            break;
+        focus.append(QVariantMap{{"id", t.objective->id}, {"title", t.objective->title}, {"group", t.objective->group},
+                                 {"level", t.level}, {"target", names.value(names.indexOf(t.level) + 1)}});
+    }
+    // Everything at Proficient or above: stretch toward Extending.
+    QVariantList stretch;
+    if (below.isEmpty())
+        for (const auto &t : taught)
+            if (t.level == "Proficient" && stretch.size() < 2)
+                stretch.append(QVariantMap{{"id", t.objective->id}, {"title", t.objective->title},
+                                           {"group", t.objective->group}, {"level", t.level}, {"target", "Extending"}});
+
+    report.insert("name", student);
+    report.insert("groups", groups);
+    report.insert("focus", focus);
+    report.insert("stretch", stretch);
+    report.insert("unassessed", unassessed);
+    report.insert("comingUp", comingUp);
+    report.insert("taught", taught.size());
+    report.insert("assessed", assessed);
+    report.insert("proficient", atProficient);
+    return report;
 }
 
 QVariantMap Backend::levels() const {

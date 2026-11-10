@@ -290,7 +290,9 @@ ApplicationWindow {
                             [qsTr("Click / right-click"), qsTr("Raise or lower a mastery level")],
                             [qsTr("Arrows"), qsTr("Move between cells (after clicking one)")],
                             ["N B D P E", qsTr("Not yet, Beginning, Developing, Proficient, Extending")],
-                            [qsTr("Click a heading"), qsTr("Fill an objective's empty cells")],
+                            [qsTr("Click a group"), qsTr("Show or hide its objectives")],
+                            [qsTr("Click an objective"), qsTr("Fill its empty cells")],
+                            [qsTr("Click a name"), qsTr("That student's progress and next steps")],
                             ["?", qsTr("This help")],
                             ["Q", qsTr("Quit")]
                         ]

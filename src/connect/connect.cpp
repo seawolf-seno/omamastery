@@ -559,6 +559,13 @@ WriteResult write(const QString &root, const PullResult &pulled) {
             w.error = error;
             return w;
         }
+        const int grouped = Importer::addGroups(root + "/" + d.id, d, &error);
+        if (grouped < 0) {
+            w.error = error;
+            return w;
+        }
+        if (grouped > 0)
+            report += QStringLiteral(", %1 objectives grouped as in Canvas").arg(grouped);
         const int seeded = Importer::seedLevels(root + "/" + d.id, d, levels, &error);
         if (seeded < 0) {
             w.error = error;

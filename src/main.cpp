@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     app.setApplicationName("omamastery");
-    app.setApplicationVersion("0.2.3");
+    app.setApplicationVersion("0.2.4");
 
     // Matches the window to omamastery.desktop, so the compositor (Wayland
     // app_id) and the launcher pick up the installed icon.
@@ -80,10 +80,17 @@ int main(int argc, char *argv[]) {
         if (!qEnvironmentVariable("OMAMASTERY_TAB").isEmpty())
             window->setProperty("tab", qEnvironmentVariable("OMAMASTERY_TAB").toInt());
         // OMAMASTERY_GRAB_STATE="contentX,contentY,row,col": a scrolled grid with a selected cell.
+        // OMAMASTERY_GRAB_GROUP opens a group; OMAMASTERY_GRAB_STUDENT opens a student's page.
         const QStringList state = qEnvironmentVariable("OMAMASTERY_GRAB_STATE").split(',', Qt::SkipEmptyParts);
         QTimer::singleShot(600, &app, [window, state]() {
             QObject *grid = window->findChild<QObject *>("masteryGrid");
             QObject *view = window->findChild<QObject *>("masteryView");
+            if (view && qEnvironmentVariableIsSet("OMAMASTERY_GRAB_GROUP"))
+                QMetaObject::invokeMethod(view, "toggleGroup", QVariant(qEnvironmentVariable("OMAMASTERY_GRAB_GROUP")));
+            if (view && qEnvironmentVariableIsSet("OMAMASTERY_GRAB_STUDENT"))
+                QMetaObject::invokeMethod(view, "openStudent", QVariant(qEnvironmentVariable("OMAMASTERY_GRAB_STUDENT")));
+            if (QObject *page = window->findChild<QObject *>("studentScroll"); page && state.size() == 4)
+                page->setProperty("contentY", state[1].toDouble());
             if (state.size() == 4 && grid && view) {
                 view->setProperty("selRow", state[2].toInt());
                 view->setProperty("selCol", state[3].toInt());

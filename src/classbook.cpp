@@ -203,7 +203,8 @@ ClassInfo Classbook::loadClass(const QString &dir) {
                     continue;
                 const toml::table &row = *entry;
                 Objective objective{str(row["id"]).trimmed(), str(row["title"]).trimmed(), str(row["idea"]).trimmed(),
-                                    weekStart(QDate::fromString(str(row["week"]).trimmed(), Qt::ISODate))};
+                                    weekStart(QDate::fromString(str(row["week"]).trimmed(), Qt::ISODate)),
+                                    str(row["group"]).trimmed()};
                 if (objective.id.isEmpty() || objective.title.isEmpty())
                     continue;
                 info.objectives.append(objective);
@@ -236,6 +237,16 @@ ClassInfo Classbook::loadClass(const QString &dir) {
         info.error = error;
     }
     return info;
+}
+
+QString Classbook::rollUp(const QStringList &set) {
+    int lowest = -1;
+    for (const auto &level : set) {
+        const int i = levels().indexOf(level);
+        if (i >= 0 && (lowest < 0 || i < lowest))
+            lowest = i;
+    }
+    return lowest < 0 ? QString() : levels()[lowest];
 }
 
 QString Classbook::masteryKey(const QString &student, const QString &objective) {
