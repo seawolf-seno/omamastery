@@ -624,6 +624,52 @@ QString levelForScore(const Score &score, double points, const ScoreLevels &leve
     return QStringLiteral("Not yet");
 }
 
+int addNewObjectives(const QString &classDir, const ClassDraft &draft, QString *error) {
+    const QString path = classDir + "/plan.toml";
+    QString text = readFile(path);
+    if (draft.objectives.isEmpty() || text.isEmpty())
+        return 0;
+    QSet<QString> ids, assignments, titles;
+    try {
+        const toml::table plan = toml::parse(text.toStdString());
+        if (const auto *list = plan["objective"].as_array())
+            for (const auto &item : *list)
+                if (const auto *row = item.as_table()) {
+                    ids.insert(QString::fromStdString((*row)["id"].value_or(std::string())));
+                    assignments.insert(QString::fromStdString((*row)["canvas_assignment"].value_or(std::string())));
+                    titles.insert(QString::fromStdString((*row)["title"].value_or(std::string())).simplified().toLower());
+                }
+    } catch (const toml::parse_error &) {
+        return 0; // never rewrite a file we can't read
+    }
+    assignments.remove(QString());
+    QString added;
+    int count = 0;
+    for (const auto &o : draft.objectives) {
+        if ((!o.canvasAssignment.isEmpty() && assignments.contains(o.canvasAssignment)) ||
+            titles.contains(o.title.simplified().toLower()))
+            continue;
+        const QString id = uniqueId(o.id.isEmpty() ? slug(o.title) : o.id, &ids);
+        titles.insert(o.title.simplified().toLower());
+        added += QStringLiteral("\n[[objective]]\nid = %1\ntitle = %2\nidea = %3\n")
+                     .arg(tomlString(id), tomlString(o.title), tomlString(o.idea));
+        if (!o.group.isEmpty())
+            added += QStringLiteral("group = %1\n").arg(tomlString(o.group));
+        if (o.week.isValid())
+            added += QStringLiteral("week = %1\n").arg(tomlString(o.week.toString(Qt::ISODate)));
+        if (!o.canvasAssignment.isEmpty())
+            added += QStringLiteral("canvas_assignment = %1\n").arg(tomlString(o.canvasAssignment));
+        ++count;
+    }
+    if (count == 0)
+        return 0;
+    if (!text.endsWith('\n'))
+        text += '\n';
+    if (!writeFile(path, text + added, error))
+        return -1;
+    return count;
+}
+
 int addGroups(const QString &classDir, const ClassDraft &draft, QString *error) {
     QHash<QString, QString> byAssignment, byTitle;
     for (const auto &o : draft.objectives) {
@@ -796,7 +842,7 @@ QString existingFolder(const QString &root, const ClassDraft &draft) {
     return {};
 }
 
-void assignIds(const QString &root, QVector<ClassDraft> *drafts) {
+void assignIds(const QString &root, QVector<ClassDraft> *drafts, const QVector<ClassDraft> &listed) {
     QSet<QString> taken;
     // Folders already set up from these classes keep their ids.
     for (auto &d : *drafts) {
@@ -804,7 +850,42 @@ void assignIds(const QString &root, QVector<ClassDraft> *drafts) {
         if (!d.id.isEmpty())
             taken.insert(d.id);
     }
+    // Next semester's course: take over the folder of the same class from an
+    // earlier term. Never another section of the same course this term.
+    const QVector<ClassDraft> &all = listed.isEmpty() ? *drafts : listed;
     const QDir dir(root);
+    for (auto &d : *drafts) {
+        if (!d.id.isEmpty() || d.canvasCourse.isEmpty())
+            continue;
+        for (const auto &entry : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+            if (taken.contains(entry.fileName()))
+                continue;
+            QString name, course;
+            try {
+                const toml::table t = toml::parse_file((entry.filePath() + "/class.toml").toStdString());
+                if (t["sample"].value_or(false))
+                    continue;
+                name = QString::fromStdString(t["name"].value_or(std::string()));
+                course = QString::fromStdString(t["canvas_course"].value_or(std::string()));
+            } catch (const toml::parse_error &) {
+                continue;
+            }
+            if (course.isEmpty() || course == d.canvasCourse || name.simplified().toLower() != d.name.simplified().toLower())
+                continue;
+            const ClassDraft *earlier = nullptr;
+            for (const auto &other : all)
+                if (other.canvasCourse == course)
+                    earlier = &other;
+            const bool ended = earlier == nullptr ||
+                               (earlier->termEnd.isValid() && d.termEnd.isValid() && earlier->termEnd < d.termEnd);
+            if (!ended)
+                continue;
+            d.id = entry.fileName();
+            d.continues = course;
+            taken.insert(d.id);
+            break;
+        }
+    }
     for (const auto &entry : dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
         taken.insert(entry);
     for (auto &d : *drafts) {
@@ -954,6 +1035,22 @@ bool writeClass(const QString &root, const ClassDraft &draft, QString *report, Q
         // Only fill in what's still blank: the teacher may have fixed the rest.
         QString text = readFile(classPath);
         const QString before = text;
+        // A new semester's course: point the folder at it, and remember the old one.
+        if (!d.continues.isEmpty() && !d.canvasCourse.isEmpty()) {
+            static const QRegularExpression courseLine(R"(^canvas_course\s*=.*$)", QRegularExpression::MultilineOption);
+            static const QRegularExpression earlierLine(R"(^earlier_canvas_courses\s*=\s*\[(.*)\]\s*$)", QRegularExpression::MultilineOption);
+            text.replace(courseLine, "canvas_course = " + tomlString(d.canvasCourse));
+            const auto m = earlierLine.match(text);
+            if (m.hasMatch()) {
+                if (!m.captured(1).contains(tomlString(d.continues)))
+                    text.replace(m.capturedStart(), m.capturedLength(),
+                                 QStringLiteral("earlier_canvas_courses = [%1, %2]").arg(m.captured(1).trimmed(), tomlString(d.continues)));
+            } else {
+                if (!text.endsWith('\n'))
+                    text += '\n';
+                text += QStringLiteral("earlier_canvas_courses = [%1] # earlier semesters of this class\n").arg(tomlString(d.continues));
+            }
+        }
         auto fill = [&](const QString &blank, const QString &line) {
             QRegularExpression re("^" + QRegularExpression::escape(blank) + "$", QRegularExpression::MultilineOption);
             text.replace(re, line);
@@ -968,7 +1065,11 @@ bool writeClass(const QString &root, const ClassDraft &draft, QString *report, Q
             fill("blackbaud_section = \"\"", "blackbaud_section = " + tomlString(d.blackbaudSection));
         if (text != before && !writeFile(classPath, text, error))
             return false;
-        *report = QStringLiteral("%1: roster refreshed, %2 students (plan and mastery kept)").arg(d.id).arg(d.students.size());
+        *report = d.continues.isEmpty()
+            ? QStringLiteral("%1: roster refreshed, %2 students (plan and mastery kept)").arg(d.id).arg(d.students.size())
+            : QStringLiteral("%1: now follows %2 in Canvas, %3 students (plan and mastery kept)")
+                  .arg(d.id, d.term.isEmpty() ? QStringLiteral("the new term's course") : d.term)
+                  .arg(d.students.size());
         return true;
     }
 

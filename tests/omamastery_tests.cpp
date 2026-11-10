@@ -363,6 +363,62 @@ private slots:
         QVERIFY(drafts[1].selected);
     }
 
+    void nextSemesterTakesOverTheFolder() {
+        QTemporaryDir dir;
+        QDir().mkpath(dir.filePath("physics"));
+        write(dir.filePath("physics/class.toml"),
+              "name = \"Physics\"\nday = \"A\"\nblock = 2\nsample = false\ncanvas_course = \"10\"\n");
+        write(dir.filePath("physics/plan.toml"),
+              "[[objective]]\nid = \"forces\"\ntitle = \"Forces\"\nweek = \"2026-09-07\"\ncanvas_assignment = \"100\"\n");
+        write(dir.filePath("physics/mastery.csv"), "date,student,objective,level,evidence\n2026-10-01,Mara,forces,Proficient,\n");
+        Importer::ClassDraft fall, spring, otherSection;
+        fall.name = spring.name = otherSection.name = "Physics";
+        fall.canvasCourse = "10";
+        fall.termEnd = QDate(2026, 12, 19);
+        spring.canvasCourse = "11";
+        spring.termEnd = QDate(2027, 5, 22);
+        spring.term = "2nd Semester";
+        otherSection.canvasCourse = "12";
+        otherSection.termEnd = QDate(2026, 12, 19);
+
+        // Another section this semester gets its own folder.
+        QVector<Importer::ClassDraft> chosen{otherSection};
+        Importer::assignIds(dir.path(), &chosen, {fall, spring, otherSection});
+        QCOMPARE(chosen[0].id, QString("physics-2"));
+        QVERIFY(chosen[0].continues.isEmpty());
+
+        // Next semester's course takes over, plan and levels kept.
+        spring.objectives = {{"forces", "Forces", "", QDate(), "200", 10, "Dynamics"},
+                             {"waves", "Waves", "", QDate(2027, 1, 11), "201", 10, "Waves"}};
+        spring.students = {{"Mara", "1", ""}};
+        chosen = {spring};
+        Importer::assignIds(dir.path(), &chosen, {fall, spring});
+        QCOMPARE(chosen[0].id, QString("physics"));
+        QCOMPARE(chosen[0].continues, QString("10"));
+        QString report, error;
+        QVERIFY(Importer::writeClass(dir.path(), chosen[0], &report, &error));
+        QVERIFY(report.contains("now follows 2nd Semester"));
+        QCOMPARE(Importer::addNewObjectives(dir.filePath("physics"), chosen[0], &error), 1); // Forces is there by title
+        const ClassInfo info = Classbook::loadClass(dir.filePath("physics"));
+        QCOMPARE(info.objectives.size(), 2);
+        QCOMPARE(info.objectives[1].id, QString("waves"));
+        QCOMPARE(info.objectives[1].group, QString("Waves"));
+        QCOMPARE(info.day, QString("A"));
+        QCOMPARE(Classbook::loadMastery(dir.filePath("physics/mastery.csv")).value(Classbook::masteryKey("Mara", "forces")),
+                 QString("Proficient"));
+        QFile file(dir.filePath("physics/class.toml"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QByteArray classToml = file.readAll();
+        QVERIFY(classToml.contains("canvas_course = \"11\""));
+        QVERIFY(classToml.contains("earlier_canvas_courses = [\"10\"]"));
+        // Running setup again finds it by its new course and adds nothing twice.
+        chosen = {spring};
+        Importer::assignIds(dir.path(), &chosen, {spring});
+        QCOMPARE(chosen[0].id, QString("physics"));
+        QVERIFY(chosen[0].continues.isEmpty());
+        QCOMPARE(Importer::addNewObjectives(dir.filePath("physics"), chosen[0], &error), 0);
+    }
+
     void groupsRollUpToTheLowestLevel() {
         QCOMPARE(Classbook::rollUp({"Proficient", "Developing", "Extending"}), QString("Developing"));
         QCOMPARE(Classbook::rollUp({"Proficient", "", "Extending"}), QString("Proficient")); // unset ones left out

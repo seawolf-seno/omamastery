@@ -406,7 +406,9 @@ PullResult list(const Settings &s, const QString &canvasToken, const QString &bl
             r.error = error.contains(" 401") ? QStringLiteral("Canvas didn't accept that token. Make a new one and try again.") : error;
             return r;
         }
-        r.classes = Importer::draftsFromCanvasCourses(courses);
+        // OMAMASTERY_TODAY=2027-01-11 previews setup on another day (a new semester).
+        const QDate today = QDate::fromString(qEnvironmentVariable("OMAMASTERY_TODAY"), Qt::ISODate);
+        r.classes = Importer::draftsFromCanvasCourses(courses, today.isValid() ? today : QDate::currentDate());
     }
 
     if (!blackbaudToken.isEmpty()) {
@@ -551,7 +553,7 @@ WriteResult write(const QString &root, const PullResult &pulled) {
     for (const auto &d : pulled.classes)
         if (d.selected)
             chosen.append(d);
-    Importer::assignIds(root, &chosen);
+    Importer::assignIds(root, &chosen, pulled.classes);
     // Cutoffs for starting levels live in schedule.toml, where the teacher can change them.
     addScoreLevels(root + "/schedule.toml");
     const Importer::ScoreLevels levels = Importer::loadScoreLevels(root + "/schedule.toml");
@@ -560,6 +562,13 @@ WriteResult write(const QString &root, const PullResult &pulled) {
             w.error = error;
             return w;
         }
+        const int added = Importer::addNewObjectives(root + "/" + d.id, d, &error);
+        if (added < 0) {
+            w.error = error;
+            return w;
+        }
+        if (added > 0)
+            report += QStringLiteral(", %1 new objectives from Canvas").arg(added);
         const int grouped = Importer::addGroups(root + "/" + d.id, d, &error);
         if (grouped < 0) {
             w.error = error;

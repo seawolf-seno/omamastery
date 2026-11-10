@@ -54,8 +54,14 @@ only fills empty cells, so a level you set is never changed. A course with none 
 its Canvas Outcomes, then its modules. The syllabus and modules are saved for
 planning. Drop in your long-range plan and press "Draft objectives", and
 your agent ties each objective to a core idea. OmaClass picks up the classes and rooms
-by itself. Run setup again each term: it refreshes rosters and keeps your
-plans, mastery and any names you changed.
+by itself. Run setup again each term: it refreshes rosters, adds Canvas
+assignments that aren't in a plan yet as new objectives, and keeps your
+plans, mastery and any names you changed. (An objective you remove comes back
+while its assignment is in Canvas; move the assignment to "Non-Mastery
+Assignments" instead.) At a new semester, where your school makes one Canvas
+course per semester, the new course takes over the class's folder: same plan
+and levels, the new roster, and its assignments added. `omamastery setup
+--dry-run` shows which folder each course goes to.
 
 Real names stay on your computer. They go only in each class's `roster.toml`
 and `mastery.csv` (owner-only). Setup never prints them and refuses to write

@@ -74,6 +74,7 @@ struct ClassDraft {
     QString note;               // why it isn't ticked: "2nd Semester", "Teacher's Assistant"
     QString term;               // its Canvas term's name
     QDate termEnd;              // when that term ends, if Canvas says
+    QString continues;          // the earlier Canvas course whose folder this one takes over
 };
 
 struct MeetingBlock { // one block's bell times, read from Blackbaud meetings
@@ -141,7 +142,16 @@ QString slug(const QString &text);
 // Folder ids that don't collide with each other or with folders on disk that
 // belong to a different class. A folder already set up for the same Canvas
 // course or Blackbaud section keeps its id, so running setup again updates it.
-void assignIds(const QString &root, QVector<ClassDraft> *drafts);
+//
+// A new semester: where a school makes one Canvas course per semester, the
+// next semester's course takes over the folder of the same-named class whose
+// course ended earlier (or is no longer listed), and keeps its plan and
+// levels. `listed` is every course setup saw, for the terms; empty means drafts.
+void assignIds(const QString &root, QVector<ClassDraft> *drafts, const QVector<ClassDraft> &listed = {});
+// Adds Canvas assignments that aren't in plan.toml yet (by assignment id or
+// title) as new objectives at the end. Never changes or removes one already
+// there. Returns how many it added, or -1 on error.
+int addNewObjectives(const QString &classDir, const ClassDraft &draft, QString *error);
 // The folder (if any) under root that was set up from this draft's source.
 QString existingFolder(const QString &root, const ClassDraft &draft);
 

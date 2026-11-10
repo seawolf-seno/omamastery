@@ -188,9 +188,14 @@ int SetupCli::run(const QStringList &arguments) {
 
     if (dryRun) {
         out() << "\nDry run: nothing written. Would set up in " << book.root() << ":\n";
+        QVector<Importer::ClassDraft> chosen;
         for (const auto &d : result.classes)
             if (d.selected)
-                out() << "  " << d.name << ": " << d.students.size() << " students, " << d.objectives.size() << " objectives"
+                chosen.append(d);
+        Importer::assignIds(book.root(), &chosen, result.classes);
+        for (const auto &d : chosen)
+                out() << "  " << d.id << (d.continues.isEmpty() ? QString() : " (next semester's course takes over this folder)")
+                      << " ← " << d.name << ": " << d.students.size() << " students, " << d.objectives.size() << " objectives"
                       << (d.planSource.isEmpty() ? QString() : " from " + d.planSource)
                       << (d.scores.isEmpty() ? QString() : QStringLiteral(", %1 graded scores for starting levels").arg(d.scores.size()))
                       << "\n";
